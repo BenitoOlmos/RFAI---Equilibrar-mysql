@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, ClientProfile, Role, ProgramType } from '../types';
 import { ALL_USERS, MOCK_CLIENT_W1 } from '../constants';
-import { Users, Activity, Calendar as CalendarIcon, Settings, ChevronRight, ChevronLeft, LogOut, Search, UserPlus, Video, Clock, FileText, Headphones, TrendingUp, AlertCircle, CheckCircle2, ChevronDown, MapPin, MoreVertical, Phone, ArrowLeft, ArrowRight, Sun, Moon, ToggleLeft, ToggleRight, Plus, X, Mail, Briefcase, Lock, Database, Server, HardDrive, Shield, Save, Edit, Menu, RefreshCw, CreditCard, File, Link as LinkIcon, Trash2, Mic, CheckSquare, Power, Upload, Image as ImageIcon } from 'lucide-react';
+import { Users, Activity, Calendar as CalendarIcon, Settings, ChevronRight, ChevronLeft, LogOut, Search, UserPlus, Video, Clock, FileText, Headphones, TrendingUp, AlertCircle, CheckCircle2, ChevronDown, MapPin, MoreVertical, Phone, ArrowLeft, ArrowRight, Sun, Moon, ToggleLeft, ToggleRight, Plus, X, Mail, Briefcase, Lock, Database, Server, HardDrive, Shield, Save, Edit, Menu, RefreshCw, CreditCard, File, Link as LinkIcon, Trash2, Mic, CheckSquare, Power, Upload, Image as ImageIcon, Filter } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
 import { BrandLogo } from './BrandLogo';
 
@@ -39,7 +39,7 @@ const getDailyAudioData = () => [
 ];
 
 // ==========================================
-// CONTENT MANAGEMENT COMPONENT (New & Robust)
+// CONTENT MANAGEMENT COMPONENT (Mobile Optimized)
 // ==========================================
 
 interface ContentItem {
@@ -74,116 +74,145 @@ const ContentManager: React.FC = () => {
 
     return (
         <div className="h-full bg-slate-50 flex flex-col relative">
-            {/* Header */}
-            <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+            {/* Header Sticky */}
+            <div className="bg-white px-4 py-3 border-b border-slate-100 flex justify-between items-center sticky top-0 z-20 shadow-sm safe-area-top">
                 <div>
-                    <h2 className="font-bold text-lg text-slate-800">Biblioteca RFAI</h2>
+                    <h2 className="font-bold text-lg text-slate-800 leading-tight">Biblioteca RFAI</h2>
                     <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Gestión de Contenidos</p>
                 </div>
-                <button onClick={() => setShowUploadModal(true)} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
-                    <Plus size={16} /> <span className="hidden sm:inline">Crear Nuevo</span><span className="sm:hidden">Crear</span>
+                <button 
+                    onClick={() => setShowUploadModal(true)} 
+                    className="bg-slate-900 text-white p-2 md:px-4 md:py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95"
+                >
+                    <Plus size={20} /> <span className="hidden md:inline">Crear Nuevo</span>
                 </button>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="p-4 bg-white border-b border-slate-50 overflow-x-auto">
-                <div className="flex gap-2 w-max">
-                    <button onClick={() => setActiveType('AUDIO')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeType === 'AUDIO' ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-200' : 'bg-slate-50 text-slate-500'}`}><Headphones size={14}/> Audios</button>
-                    <button onClick={() => setActiveType('GUIDE')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeType === 'GUIDE' ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-200' : 'bg-slate-50 text-slate-500'}`}><FileText size={14}/> Guías</button>
-                    <button onClick={() => setActiveType('TEST')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeType === 'TEST' ? 'bg-teal-100 text-teal-700 ring-2 ring-teal-200' : 'bg-slate-50 text-slate-500'}`}><CheckSquare size={14}/> Tests</button>
-                    <button onClick={() => setActiveType('DOC')} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeType === 'DOC' ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-200' : 'bg-slate-50 text-slate-500'}`}><File size={14}/> Docs</button>
+            {/* Filter Tabs - Horizontal Scroll for Mobile */}
+            <div className="bg-white border-b border-slate-50">
+                <div className="flex overflow-x-auto py-3 px-4 gap-3 no-scrollbar snap-x">
+                    {[
+                        { id: 'AUDIO', label: 'Audios', icon: Headphones, color: 'indigo' },
+                        { id: 'GUIDE', label: 'Guías', icon: FileText, color: 'amber' },
+                        { id: 'TEST', label: 'Tests', icon: CheckSquare, color: 'teal' },
+                        { id: 'DOC', label: 'Docs', icon: File, color: 'blue' },
+                    ].map((item) => (
+                        <button 
+                            key={item.id}
+                            onClick={() => setActiveType(item.id as any)} 
+                            className={`snap-start shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${activeType === item.id 
+                                ? `bg-${item.color}-50 text-${item.color}-700 border-${item.color}-200 ring-1 ring-${item.color}-200` 
+                                : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}`}
+                        >
+                            <item.icon size={16}/> {item.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             {/* Content Grid */}
-            <div className="p-4 space-y-3 overflow-y-auto pb-24">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
                 {filteredResources.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4"><Upload size={24}/></div>
-                        <p className="text-sm font-medium">No hay contenidos en esta categoría</p>
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 animate-pulse"><Upload size={32} className="opacity-50"/></div>
+                        <p className="text-sm font-medium">No hay contenidos aquí</p>
+                        <p className="text-xs">Sube un nuevo archivo para comenzar</p>
                     </div>
                 ) : (
                     filteredResources.map((res) => (
-                        <div key={res.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <div className="flex items-center gap-4">
+                        <div key={res.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group active:scale-[0.98] transition-all duration-200">
+                            <div className="flex items-center gap-4 overflow-hidden">
                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${res.type === 'AUDIO' ? 'bg-indigo-50 text-indigo-600' : res.type === 'GUIDE' ? 'bg-amber-50 text-amber-600' : res.type === 'TEST' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'}`}>
                                     {res.type === 'AUDIO' ? <Headphones size={20} /> : res.type === 'GUIDE' ? <FileText size={20} /> : res.type === 'TEST' ? <CheckSquare size={20} /> : <File size={20} />}
                                 </div>
-                                <div className="min-w-0">
-                                    <h4 className="font-bold text-slate-800 text-sm truncate pr-2">{res.title}</h4>
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${res.prog === 'ANGUSTIA' ? 'bg-indigo-100 text-indigo-700' : res.prog === 'CULPA' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>{res.prog}</span>
-                                        <span className="text-[10px] text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded">{res.details}</span>
+                                <div className="min-w-0 flex-1">
+                                    <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${res.prog === 'ANGUSTIA' ? 'bg-indigo-100 text-indigo-700' : res.prog === 'CULPA' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>{res.prog}</span>
+                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{res.details}</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex gap-1 md:gap-2">
-                                <button className="p-2 rounded-lg bg-slate-50 text-slate-600 hover:bg-brand-50 hover:text-brand-600 transition-colors"><Edit size={16} /></button>
-                                <button onClick={() => handleDelete(res.id)} className="p-2 rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                            <div className="flex items-center gap-1 ml-2">
+                                <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-brand-50 hover:text-brand-600 border border-transparent hover:border-brand-100 transition-all"><Edit size={18} /></button>
+                                <button onClick={() => handleDelete(res.id)} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 border border-transparent hover:border-red-100 transition-all"><Trash2 size={18} /></button>
                             </div>
                         </div>
                     ))
                 )}
             </div>
 
-            {/* Create/Upload Modal */}
+            {/* Create/Upload Modal (Mobile Bottom Sheet Style) */}
             {showUploadModal && (
                 <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center sm:p-4">
-                    <div className="bg-white w-full max-w-lg rounded-t-3xl md:rounded-3xl shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh]">
+                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh]">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                             <h3 className="font-bold text-xl text-slate-800">Crear Recurso</h3>
-                            <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={24}/></button>
+                            <button onClick={() => setShowUploadModal(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><X size={20}/></button>
                         </div>
                         
-                        <div className="p-6 space-y-5 overflow-y-auto">
+                        <div className="p-6 space-y-6 overflow-y-auto">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo de Recurso</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Tipo de Recurso</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => setActiveType('AUDIO')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${activeType === 'AUDIO' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500'}`}><Headphones size={16}/> Audio</button>
-                                    <button onClick={() => setActiveType('DOC')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${activeType === 'DOC' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500'}`}><File size={16}/> Documento</button>
-                                    <button onClick={() => setActiveType('GUIDE')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${activeType === 'GUIDE' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-500'}`}><FileText size={16}/> Guía</button>
-                                    <button onClick={() => setActiveType('TEST')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 ${activeType === 'TEST' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-500'}`}><CheckSquare size={16}/> Test</button>
+                                    <button onClick={() => setActiveType('AUDIO')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'AUDIO' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500' : 'border-slate-200 text-slate-500'}`}><Headphones size={18}/> Audio</button>
+                                    <button onClick={() => setActiveType('DOC')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'DOC' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-slate-200 text-slate-500'}`}><File size={18}/> Doc</button>
+                                    <button onClick={() => setActiveType('GUIDE')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'GUIDE' ? 'border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-500' : 'border-slate-200 text-slate-500'}`}><FileText size={18}/> Guía</button>
+                                    <button onClick={() => setActiveType('TEST')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'TEST' ? 'border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500' : 'border-slate-200 text-slate-500'}`}><CheckSquare size={18}/> Test</button>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Título</label>
-                                <input type="text" placeholder="Ej: Audio Semana 1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-brand-200 outline-none transition-all" />
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Título</label>
+                                    <input type="text" placeholder="Ej: Audio Semana 1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-slate-400 focus:ring-0 outline-none transition-all" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Programa</label>
+                                    <div className="relative">
+                                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none appearance-none">
+                                            <option value="AMBOS">Ambos Programas</option>
+                                            <option value="CULPA">RFAI Culpa</option>
+                                            <option value="ANGUSTIA">RFAI Angustia</option>
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Programa</label>
-                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none">
-                                    <option value="AMBOS">Ambos Programas</option>
-                                    <option value="CULPA">RFAI Culpa</option>
-                                    <option value="ANGUSTIA">RFAI Angustia</option>
-                                </select>
+                            {/* Dynamic Upload/Create Area */}
+                            <div className="pt-2">
+                                {(activeType === 'AUDIO' || activeType === 'DOC') && (
+                                    <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-brand-400 transition-colors cursor-pointer group">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors">
+                                            <Upload size={24} />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-600">Subir Archivo</span>
+                                        <span className="text-xs mt-1">MP3, PDF, DOCX (Max 50MB)</span>
+                                    </div>
+                                )}
+
+                                {activeType === 'GUIDE' && (
+                                    <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex flex-col items-center text-center">
+                                        <FileText size={32} className="text-amber-400 mb-3" />
+                                        <h4 className="font-bold text-amber-800 text-sm mb-1">Constructor de Guías</h4>
+                                        <p className="text-xs text-amber-600 mb-4">Crea pasos interactivos y preguntas reflexivas.</p>
+                                        <button className="w-full bg-white border border-amber-200 text-amber-700 font-bold py-3 rounded-xl text-sm hover:bg-amber-100 shadow-sm">Abrir Editor</button>
+                                    </div>
+                                )}
+
+                                {activeType === 'TEST' && (
+                                    <div className="bg-teal-50 rounded-2xl p-5 border border-teal-100 flex flex-col items-center text-center">
+                                        <CheckSquare size={32} className="text-teal-400 mb-3" />
+                                        <h4 className="font-bold text-teal-800 text-sm mb-1">Constructor de Tests</h4>
+                                        <p className="text-xs text-teal-600 mb-4">Define escalas y preguntas de evaluación.</p>
+                                        <button className="w-full bg-white border border-teal-200 text-teal-700 font-bold py-3 rounded-xl text-sm hover:bg-teal-100 shadow-sm">Configurar Test</button>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Dynamic Fields based on Type */}
-                            {(activeType === 'AUDIO' || activeType === 'DOC') && (
-                                <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-brand-400 transition-colors cursor-pointer">
-                                    <Upload size={32} className="mb-2" />
-                                    <span className="text-xs font-bold uppercase">Click para subir archivo</span>
-                                    <span className="text-[10px] mt-1">MP3, PDF, DOCX (Max 50MB)</span>
-                                </div>
-                            )}
-
-                            {activeType === 'GUIDE' && (
-                                <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-                                    <p className="text-xs text-amber-800 mb-2">Editor de Guías Interactivas</p>
-                                    <button className="w-full bg-white border border-amber-200 text-amber-600 font-bold py-2 rounded-lg text-xs hover:bg-amber-100">Abrir Editor de Pasos</button>
-                                </div>
-                            )}
-
-                            {activeType === 'TEST' && (
-                                <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
-                                    <p className="text-xs text-teal-800 mb-2">Configuración de Test</p>
-                                    <button className="w-full bg-white border border-teal-200 text-teal-600 font-bold py-2 rounded-lg text-xs hover:bg-teal-100">Configurar Preguntas y Escalas</button>
-                                </div>
-                            )}
-
-                            <button className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg shadow-slate-300 hover:bg-slate-800 transform active:scale-95 transition-all">
+                            <button className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-xl shadow-slate-200 hover:bg-slate-800 active:scale-[0.98] transition-all">
                                 Guardar Recurso
                             </button>
                         </div>
@@ -695,6 +724,12 @@ const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUs
         setMockUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } : u));
     };
 
+    const deleteUser = (id: string) => {
+        if(confirm('¿Eliminar usuario?')) {
+            setMockUsers(prev => prev.filter(u => u.id !== id));
+        }
+    }
+
     return (
         <div className="h-full flex flex-col bg-slate-50 relative">
             {/* Header with Search and Add */}
@@ -777,11 +812,9 @@ const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUs
                                 <button onClick={() => onSelectUser(user)} className="bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
                                     <Edit size={14}/> Editar
                                 </button>
-                                {isClient && (
-                                    <button className="bg-white border border-slate-200 text-slate-600 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors">
-                                        <Activity size={14}/> Ver Avance
-                                    </button>
-                                )}
+                                <button onClick={() => deleteUser(user.id)} className="bg-white border border-slate-200 text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
+                                    <Trash2 size={14}/> Eliminar
+                                </button>
                             </div>
                         </div>
                     );
@@ -925,6 +958,7 @@ const CoordinatorView: React.FC<{ currentUser: User; onLogout: () => void }> = (
                 <button onClick={() => setActiveTab('clients')} className={`flex flex-col items-center gap-1 ${activeTab === 'clients' ? 'text-slate-900' : 'text-slate-400'}`}><Activity size={20} /><span className="text-[10px] font-bold">Pacientes</span></button>
                 <button onClick={() => setActiveTab('calendar')} className={`flex flex-col items-center gap-1 ${activeTab === 'calendar' ? 'text-slate-900' : 'text-slate-400'}`}><CalendarIcon size={20} /><span className="text-[10px] font-bold">Agenda</span></button>
                 <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-1 ${activeTab === 'users' ? 'text-slate-900' : 'text-slate-400'}`}><Users size={20} /><span className="text-[10px] font-bold">Gestión</span></button>
+                <button onClick={() => setActiveTab('content')} className={`flex flex-col items-center gap-1 ${activeTab === 'content' ? 'text-slate-900' : 'text-slate-400'}`}><Briefcase size={20} /><span className="text-[10px] font-bold">Contenido</span></button>
                 <button onClick={onLogout} className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-500"><LogOut size={20} /><span className="text-[10px] font-bold">Salir</span></button>
             </div>
         </div>

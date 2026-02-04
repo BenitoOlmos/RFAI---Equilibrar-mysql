@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PacienteConectado, ProgramaNombre } from '../types';
 import { CONTENIDO_SESIONES_CULPA, CONTENIDO_SESIONES_ANGUSTIA, CONTENIDO_SESIONES_IRRITABILIDAD } from '../constants';
-import { Lock, CheckCircle, Play, FileText, Video, Headphones, BarChart, LogOut, Pause, Calendar, ExternalLink, Sparkles, ChevronRight } from 'lucide-react';
+import { Lock, CheckCircle, Play, FileText, Video, LogOut, Pause, ExternalLink, ChevronRight } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
 
 interface Props {
@@ -17,7 +17,6 @@ export const ClientDashboard: React.FC<Props> = ({ user, onLogout }) => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
   const semanaCalculada = Math.min(Math.ceil(diffDays / 7), 4); // Max 4 semanas
   
-  const [activeWeek, setActiveWeek] = useState<number>(semanaCalculada);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
 
   // Selector de contenido
@@ -173,7 +172,7 @@ export const ClientDashboard: React.FC<Props> = ({ user, onLogout }) => {
                         {!isLocked && (
                             <div className="space-y-3">
                                 
-                                {/* WEEK 4 SPECIAL: Meet Link APPEARS FIRST */}
+                                {/* WEEK 4 SPECIAL: Meet Link APPEARS FIRST (Before resources) */}
                                 {showMeetBefore && (
                                     <MeetCard 
                                         title="Sesión de Cierre" 
@@ -223,7 +222,7 @@ export const ClientDashboard: React.FC<Props> = ({ user, onLogout }) => {
                                     })}
                                 </div>
 
-                                {/* WEEK 1 SPECIAL: Meet Link APPEARS LAST */}
+                                {/* WEEK 1 SPECIAL: Meet Link APPEARS LAST (After resources) */}
                                 {showMeetAfter && (
                                     <MeetCard 
                                         title="Sesión de Inicio" 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, ClientProfile, Role, ProgramType } from '../types';
 import { ALL_USERS, MOCK_CLIENT_W1 } from '../constants';
-import { Users, Activity, Calendar as CalendarIcon, Settings, ChevronRight, ChevronLeft, LogOut, Search, UserPlus, Video, Clock, FileText, Headphones, TrendingUp, AlertCircle, CheckCircle2, ChevronDown, MapPin, MoreVertical, Phone, ArrowLeft, ArrowRight, Sun, Moon, ToggleLeft, ToggleRight, Plus, X, Mail, Briefcase, Lock, Database, Server, HardDrive, Shield, Save, Edit, Menu, RefreshCw, CreditCard, File, Link as LinkIcon, Trash2, Mic, CheckSquare, Power, Upload, Image as ImageIcon, Filter } from 'lucide-react';
+import { Users, Activity, Calendar as CalendarIcon, Settings, ChevronRight, ChevronLeft, LogOut, Search, UserPlus, Video, Clock, FileText, Headphones, TrendingUp, AlertCircle, CheckCircle2, ChevronDown, MapPin, MoreVertical, Phone, ArrowLeft, ArrowRight, Sun, Moon, ToggleLeft, ToggleRight, Plus, X, Mail, Briefcase, Lock, Database, Server, HardDrive, Shield, Save, Edit, Menu, RefreshCw, CreditCard, File, Link as LinkIcon, Trash2, Mic, CheckSquare, Power, Upload, Image as ImageIcon, Filter, Phone as PhoneIcon, Stethoscope, BookOpen } from 'lucide-react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
 import { BrandLogo } from './BrandLogo';
 
@@ -37,6 +37,161 @@ const getDailyAudioData = () => [
     { day: 'Sáb', mins: 15 },
     { day: 'Dom', mins: 45 },
 ];
+
+// ==========================================
+// USER EDIT MODAL (Architect Approved)
+// ==========================================
+
+interface UserEditModalProps {
+    user: User;
+    onSave: (updatedUser: User) => void;
+    onClose: () => void;
+    currentUserRole: Role;
+}
+
+const UserEditModal: React.FC<UserEditModalProps> = ({ user, onSave, onClose, currentUserRole }) => {
+    // Hydration of state from prop
+    const [formData, setFormData] = useState<User>({ ...user });
+    
+    const toggleStatus = () => {
+        setFormData(prev => ({
+            ...prev,
+            status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // Here we would call the API: POST /api/users/update
+        console.log("Saving user payload:", formData);
+        onSave(formData);
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center sm:p-4">
+            <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                    <h3 className="text-xl font-bold text-slate-800">Editar Usuario</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition-colors"><X size={24}/></button>
+                </div>
+                
+                <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1">
+                    {/* Identity Section */}
+                    <div className="flex items-center gap-4 mb-4">
+                        <img src={formData.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-slate-100" />
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase">ID: {formData.id}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${formData.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {formData.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
+                                </span>
+                                <button type="button" onClick={toggleStatus} className="text-slate-400 hover:text-brand-600 transition-colors">
+                                    {formData.status === 'ACTIVE' ? <ToggleRight size={24} className="text-green-500"/> : <ToggleLeft size={24} className="text-slate-300"/>}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
+                        <input 
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-200 outline-none transition-all" 
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                        <div className="relative">
+                            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                            <input 
+                                value={formData.email}
+                                onChange={e => setFormData({...formData, email: e.target.value})}
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-200 outline-none transition-all" 
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                            <div className="relative">
+                                <PhoneIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                <input 
+                                    value={formData.phone || ''}
+                                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                                    placeholder="+56 9..."
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none transition-all" 
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rol</label>
+                            <select 
+                                value={formData.role}
+                                onChange={e => setFormData({...formData, role: e.target.value as Role})}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm outline-none focus:border-brand-500"
+                                disabled={currentUserRole !== 'ADMIN' && formData.role === 'ADMIN'} // Safety lock
+                            >
+                                <option value="CLIENT">Paciente</option>
+                                <option value="PROFESSIONAL">Profesional</option>
+                                {currentUserRole === 'ADMIN' && <option value="COORDINATOR">Coordinador</option>}
+                                {currentUserRole === 'ADMIN' && <option value="ADMIN">Admin</option>}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Program Selector for Clients (Contract) or Professionals (Specialty) */}
+                    {(formData.role === 'CLIENT' || formData.role === 'PROFESSIONAL') && (
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                {formData.role === 'CLIENT' ? 'Programa Contratado' : 'Enfoque Clínico'}
+                            </label>
+                            <div className="relative">
+                                <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                <select 
+                                    value={formData.program || 'CULPA'}
+                                    onChange={e => setFormData({...formData, program: e.target.value as ProgramType})}
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-500 appearance-none"
+                                >
+                                    <option value="CULPA">RFAI - Tratamiento de Culpa</option>
+                                    <option value="ANGUSTIA">RFAI - Tratamiento de Angustia</option>
+                                </select>
+                                <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
+                            </div>
+                        </div>
+                    )}
+
+                    {(formData.role === 'PROFESSIONAL' || formData.role === 'COORDINATOR') && (
+                        <div>
+                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Especialidad / Cargo</label>
+                             <div className="relative">
+                                <Stethoscope size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                                <input 
+                                    value={formData.specialty || ''}
+                                    onChange={e => setFormData({...formData, specialty: e.target.value})}
+                                    placeholder="Ej: Psicólogo Clínico"
+                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none transition-all" 
+                                />
+                             </div>
+                        </div>
+                    )}
+
+                    <div className="pt-4 flex gap-3">
+                         <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50">
+                            Cancelar
+                        </button>
+                        <button type="submit" className="flex-1 bg-brand-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-200 hover:bg-brand-700 transform active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <Save size={18} /> Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 // ==========================================
 // CONTENT MANAGEMENT COMPONENT (Mobile Optimized)
@@ -708,6 +863,7 @@ const AdminSettings: React.FC = () => {
 const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUserRole: Role }> = ({ onSelectUser, currentUserRole }) => {
     const [filter, setFilter] = useState<'ALL' | 'ADMIN' | 'PROF' | 'COORD' | 'CLIENT'>('ALL');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [mockUsers, setMockUsers] = useState(ALL_USERS);
     
     // Filter users logic
@@ -729,6 +885,11 @@ const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUs
             setMockUsers(prev => prev.filter(u => u.id !== id));
         }
     }
+
+    const handleUpdateUser = (updated: User) => {
+        setMockUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+        setEditingUser(null);
+    };
 
     return (
         <div className="h-full flex flex-col bg-slate-50 relative">
@@ -809,7 +970,7 @@ const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUs
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-50">
-                                <button onClick={() => onSelectUser(user)} className="bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
+                                <button onClick={() => setEditingUser(user)} className="bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
                                     <Edit size={14}/> Editar
                                 </button>
                                 <button onClick={() => deleteUser(user.id)} className="bg-white border border-slate-200 text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
@@ -852,6 +1013,16 @@ const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUs
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Editing Modal */}
+            {editingUser && (
+                <UserEditModal 
+                    user={editingUser} 
+                    onSave={handleUpdateUser} 
+                    onClose={() => setEditingUser(null)} 
+                    currentUserRole={currentUserRole}
+                />
             )}
         </div>
     );

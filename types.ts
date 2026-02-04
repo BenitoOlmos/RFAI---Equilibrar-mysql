@@ -8,13 +8,17 @@ export interface User {
   role: Role;
   avatar: string;
   status: 'ACTIVE' | 'INACTIVE';
+  // Nuevos atributos de hidratación (Perfil extendido)
+  phone?: string;
+  specialty?: string; // Solo relevante para PROFESIONAL/COORDINATOR
+  program?: ProgramType; // Relevante para CLIENT (contrato) y PROFESIONAL (enfoque)
 }
 
 export interface ClientProfile extends User {
   currentWeek: 1 | 2 | 3 | 4;
   startDate: string;
   nextSession?: string;
-  program: ProgramType; // New field to distinguish programs
+  program: ProgramType; // Heredado de User, pero obligatorio en runtime para ClientProfile
   progress: {
     week1: WeekProgress;
     week2: WeekProgress;

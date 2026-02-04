@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TEST_QUESTIONS_CULPA, TEST_QUESTIONS_ANGUSTIA } from '../constants';
+import { TEST_QUESTIONS_CULPA, TEST_QUESTIONS_ANGUSTIA, TEST_QUESTIONS_IRRITABILIDAD } from '../constants';
 import { ProgramType } from '../types';
 
 interface TestModuleProps {
@@ -13,7 +13,9 @@ export const TestModule: React.FC<TestModuleProps> = ({ program, onComplete, onC
   const [answers, setAnswers] = useState<Record<number, number>>({});
 
   // Select questions based on program
-  const questions = program === 'ANGUSTIA' ? TEST_QUESTIONS_ANGUSTIA : TEST_QUESTIONS_CULPA;
+  let questions = TEST_QUESTIONS_CULPA;
+  if (program === 'ANGUSTIA') questions = TEST_QUESTIONS_ANGUSTIA;
+  if (program === 'IRRITABILIDAD') questions = TEST_QUESTIONS_IRRITABILIDAD;
 
   const handleAnswer = (val: number) => {
     setAnswers(prev => ({ ...prev, [questions[currentStep].id]: val }));
@@ -28,16 +30,29 @@ export const TestModule: React.FC<TestModuleProps> = ({ program, onComplete, onC
   const currentQuestion = questions[currentStep];
 
   // Theme colors based on program
-  const themeColor = program === 'ANGUSTIA' ? 'bg-indigo-600' : 'bg-teal-600';
-  const themeLight = program === 'ANGUSTIA' ? 'bg-indigo-50 text-indigo-700 border-indigo-500' : 'bg-teal-50 text-teal-700 border-teal-500';
-  const themeBar = program === 'ANGUSTIA' ? 'bg-indigo-400' : 'bg-teal-400';
+  let themeColor = 'bg-teal-600';
+  let themeLight = 'bg-teal-50 text-teal-700 border-teal-500';
+  let themeBar = 'bg-teal-400';
+  let programTitle = 'Culpa';
+
+  if (program === 'ANGUSTIA') {
+      themeColor = 'bg-indigo-600';
+      themeLight = 'bg-indigo-50 text-indigo-700 border-indigo-500';
+      themeBar = 'bg-indigo-400';
+      programTitle = 'Angustia';
+  } else if (program === 'IRRITABILIDAD') {
+      themeColor = 'bg-orange-600';
+      themeLight = 'bg-orange-50 text-orange-700 border-orange-500';
+      themeBar = 'bg-orange-400';
+      programTitle = 'Irritabilidad';
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
         <div className={`p-6 text-white flex justify-between items-center ${themeColor}`}>
           <div>
-            <h2 className="text-2xl font-bold font-sans">Test de {program === 'ANGUSTIA' ? 'Angustia' : 'Culpa'}</h2>
+            <h2 className="text-2xl font-bold font-sans">Test de {programTitle}</h2>
             <p className="opacity-90 text-sm">Evaluación RFAI</p>
           </div>
           <div className="text-right">

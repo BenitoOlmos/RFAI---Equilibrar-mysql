@@ -1,1195 +1,1166 @@
-import React, { useState, useEffect } from 'react';
-import { User, ClientProfile, Role, ProgramType } from '../types';
-import { ALL_USERS, MOCK_CLIENT_W1 } from '../constants';
-import { Users, Activity, Calendar as CalendarIcon, Settings, ChevronRight, ChevronLeft, LogOut, Search, UserPlus, Video, Clock, FileText, Headphones, TrendingUp, AlertCircle, CheckCircle2, ChevronDown, MapPin, MoreVertical, Phone, ArrowLeft, ArrowRight, Sun, Moon, ToggleLeft, ToggleRight, Plus, X, Mail, Briefcase, Lock, Database, Server, HardDrive, Shield, Save, Edit, Menu, RefreshCw, CreditCard, File, Link as LinkIcon, Trash2, Mic, CheckSquare, Power, Upload, Image as ImageIcon, Filter, Phone as PhoneIcon, Stethoscope, BookOpen } from 'lucide-react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Cell } from 'recharts';
-import { BrandLogo } from './BrandLogo';
+import React, { useState } from 'react';
+import { UsuarioConectado, RolSlug, Programa, Recurso, TipoRecurso, Calendario, EstadoInscripcion, ModalidadCita } from '../types';
+import { ALL_USERS, ALL_PROGRAMS, ALL_RESOURCES, MOCK_APPOINTMENTS } from '../constants';
+import { Users, Activity, Settings, LogOut, Search, UserPlus, Server, HardDrive, Edit, Trash2, Power, X, Mail, Phone as PhoneIcon, Save, Briefcase, FileText, Plus, Check, Link, Upload, Database, Code, Globe, AlertCircle, Calendar, UserCheck, Shield, User, Clock, Video, MapPin, Lock, Eye, BarChart2, Headphones, TrendingDown, ClipboardList, ExternalLink } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface Props {
-  currentUser: User;
+  currentUser: UsuarioConectado;
   onLogout: () => void;
 }
 
 // ==========================================
-// SHARED HELPERS
+// SHARED COMPONENTS
+// ==========================================
+const ModalLayout: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; maxWidth?: string }> = ({ title, onClose, children, maxWidth = 'max-w-lg' }) => (
+    <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className={`bg-white w-full ${maxWidth} rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[95vh] overflow-y-auto custom-scrollbar`}>
+            <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
+                <h3 className="text-xl font-bold text-slate-800">{title}</h3>
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"><X size={24}/></button>
+            </div>
+            {children}
+        </div>
+    </div>
+);
+
+// ==========================================
+// NEW: CLINICAL RECORD MODAL (FICHA CLÍNICA)
 // ==========================================
 
-const getMeetingDate = (startDateStr: string, weekNum: number) => {
-    const date = new Date(startDateStr);
-    date.setDate(date.getDate() + (weekNum - 1) * 7);
-    date.setDate(date.getDate() + 2);
-    date.setHours(10, 0, 0, 0);
-    
-    const now = new Date();
-    const isPast = date < now;
-    const dateStr = date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-    const formatted = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-    
-    return { formatted, isPast, fullDate: date };
+const PatientClinicalRecord: React.FC<{ user: UsuarioConectado; onClose: () => void }> = ({ user, onClose }) => {
+    const stats = user.estadisticas;
+    const inscripcion = user.inscripciones?.[0]; // Asumimos la primera para el MVP
+    const programa = inscripcion?.programa;
+
+    if (!stats) return null;
+
+    return (
+        <ModalLayout title="Ficha Clínica y Progreso" onClose={onClose} maxWidth="max-w-4xl">
+            {/* Header: Datos Administrativos */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6 flex flex-col md:flex-row justify-between gap-6">
+                <div className="flex gap-4">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-xl font-bold text-brand-600 shadow-sm border border-slate-200">
+                        {user.avatarPlaceholder}
+                    </div>
+                    <div>
+                        <h4 className="text-lg font-bold text-slate-800">{user.perfil.nombre}</h4>
+                        <p className="text-sm text-slate-500">{user.email}</p>
+                        <div className="flex gap-2 mt-2">
+                            <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                                {user.perfil.isapre || 'Sin Isapre'}
+                            </span>
+                             <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+                                {user.perfil.seguroComplementario || 'Sin Seguro'}
+                            </span>
+                        </div>
+                        {user.perfil.direccion && (
+                            <p className="text-xs text-slate-400 mt-2 flex items-center gap-1"><MapPin size={10}/> {user.perfil.direccion}</p>
+                        )}
+                    </div>
+                </div>
+                <div className="text-right">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Programa Actual</p>
+                    <h2 className="text-xl font-bold text-brand-600">{programa?.nombre || 'Sin Asignar'}</h2>
+                    <p className="text-sm text-slate-500">Iniciado: {new Date(inscripcion?.fechaInicio || '').toLocaleDateString('es-CL')}</p>
+                </div>
+            </div>
+
+            {/* KPIs Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-indigo-500"><Clock size={16}/> <span className="text-xs font-bold uppercase">Semana Actual</span></div>
+                    <div className="text-2xl font-bold text-slate-800">{stats.avanceSemanal} <span className="text-sm font-normal text-slate-400">/ 4</span></div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-teal-500"><Headphones size={16}/> <span className="text-xs font-bold uppercase">Audio Total</span></div>
+                    <div className="text-2xl font-bold text-slate-800">{stats.minutosAudioTotal} <span className="text-sm font-normal text-slate-400">min</span></div>
+                </div>
+                 <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-orange-500"><Calendar size={16}/> <span className="text-xs font-bold uppercase">Día Frecuente</span></div>
+                    <div className="text-xl font-bold text-slate-800">{stats.diaMasFrecuenteAudio}</div>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2 text-rose-500"><TrendingDown size={16}/> <span className="text-xs font-bold uppercase">Sintomatología</span></div>
+                    <div className="text-xl font-bold text-green-600">-20% <span className="text-xs text-slate-400 font-normal">vs Inicio</span></div>
+                </div>
+            </div>
+
+            {/* Chart: Evolución de Tests */}
+            <div className="mb-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                <h4 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 size={18} className="text-brand-500"/> Evolución Escala de Malestar (Test Semanal)</h4>
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={stats.historialTests}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis dataKey="semana" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                            <Tooltip 
+                                contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                                itemStyle={{color: '#0097b2', fontWeight: 'bold'}}
+                            />
+                            <Line type="monotone" dataKey="puntaje" stroke="#0097b2" strokeWidth={3} dot={{r: 4, fill: '#0097b2', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 6}} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+        </ModalLayout>
+    );
 };
 
-const getDailyAudioData = () => [
-    { day: 'Lun', mins: 45 },
-    { day: 'Mar', mins: 30 },
-    { day: 'Mié', mins: 0 },
-    { day: 'Jue', mins: 60 },
-    { day: 'Vie', mins: 25 },
-    { day: 'Sáb', mins: 15 },
-    { day: 'Dom', mins: 45 },
-];
-
 // ==========================================
-// USER EDIT MODAL (Architect Approved)
+// 1. GESTIÓN DE USUARIOS
 // ==========================================
 
-interface UserEditModalProps {
-    user: User;
-    onSave: (updatedUser: User) => void;
-    onClose: () => void;
-    currentUserRole: Role;
+interface AdminUserManagementProps {
+    roleFilter: RolSlug;
+    title: string;
 }
 
-const UserEditModal: React.FC<UserEditModalProps> = ({ user, onSave, onClose, currentUserRole }) => {
-    // Hydration of state from prop
-    const [formData, setFormData] = useState<User>({ ...user });
-    
-    const toggleStatus = () => {
-        setFormData(prev => ({
-            ...prev,
-            status: prev.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-        }));
+const AdminUserManagement: React.FC<AdminUserManagementProps> = ({ roleFilter, title }) => {
+    // En una app real, filtraríamos desde el backend o usando el estado global.
+    const [users, setUsers] = useState(ALL_USERS);
+    const [editingUser, setEditingUser] = useState<UsuarioConectado | null>(null);
+    const [viewingClinical, setViewingClinical] = useState<UsuarioConectado | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+
+    // Initial state for new user
+    const [newUser, setNewUser] = useState({
+        name: '', email: '', password: '', role: roleFilter, phone: '', programs: [] as string[],
+        isapre: '', seguro: '', selectedProgramId: '', address: '' // Added Address
+    });
+
+    const filteredUsers = users.filter(u => u.rol.slug === roleFilter);
+
+    const handleDelete = (id: string) => {
+        if(confirm('¿Confirma la eliminación de este usuario? Esta acción no se puede deshacer.')) {
+            setUsers(prev => prev.filter(u => u.id !== id));
+        }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
-        // Here we would call the API: POST /api/users/update
-        console.log("Saving user payload:", formData);
-        onSave(formData);
-        onClose();
+        const id = `u-${Date.now()}`;
+        
+        let roleId = 'r-4'; // Default Client
+        let roleName = 'Paciente';
+        if (newUser.role === RolSlug.ADMIN) { roleId = 'r-1'; roleName = 'Administrador'; }
+        if (newUser.role === RolSlug.COORDINATOR) { roleId = 'r-2'; roleName = 'Coordinador'; }
+        if (newUser.role === RolSlug.PROFESSIONAL) { roleId = 'r-3'; roleName = 'Profesional'; }
+
+        // Logic to link program if Client
+        const selectedProg = ALL_PROGRAMS.find(p => p.id === newUser.selectedProgramId);
+        const inscripciones = selectedProg && roleId === 'r-4' ? [{
+            id: `ins-${id}`, pacienteId: id, programaId: selectedProg.id, fechaInicio: new Date().toISOString(),
+            estado: EstadoInscripcion.ACTIVO, programa: selectedProg, progreso: []
+        }] : undefined;
+
+        const created: UsuarioConectado = {
+            id,
+            email: newUser.email,
+            password: newUser.password,
+            estaActivo: true,
+            rolId: roleId,
+            rol: { id: roleId, nombre: roleName, slug: newUser.role as RolSlug },
+            perfil: { 
+                id: `pf-${id}`, usuarioId: id, nombre: newUser.name, telefono: newUser.phone,
+                isapre: newUser.isapre, seguroComplementario: newUser.seguro, direccion: newUser.address
+            },
+            programasIds: newUser.role === RolSlug.PROFESSIONAL ? newUser.programs : undefined,
+            avatarPlaceholder: newUser.name.charAt(0).toUpperCase() + (newUser.name.split(' ')[1]?.charAt(0) || ''),
+            inscripciones,
+            estadisticas: { minutosAudioTotal: 0, diaMasFrecuenteAudio: '-', avanceSemanal: 1, historialTests: [], historialSesiones: [] }
+        };
+        setUsers([...users, created]);
+        setIsCreating(false);
+        setNewUser({ name: '', email: '', password: '', role: roleFilter, phone: '', programs: [], isapre: '', seguro: '', selectedProgramId: '', address: '' });
+    };
+
+    const handleUpdate = (updated: UsuarioConectado) => {
+        setUsers(users.map(u => u.id === updated.id ? updated : u));
+        setEditingUser(null);
+    };
+
+    const toggleProgram = (progId: string) => {
+        setNewUser(prev => {
+            const exists = prev.programs.includes(progId);
+            return {
+                ...prev,
+                programs: exists ? prev.programs.filter(id => id !== progId) : [...prev.programs, progId]
+            }
+        });
     };
 
     return (
-        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center sm:p-4">
-            <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh]">
-                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                    <h3 className="text-xl font-bold text-slate-800">Editar Usuario</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition-colors"><X size={24}/></button>
+        <div className="h-full flex flex-col bg-slate-50">
+            <div className="bg-white p-4 border-b border-slate-100 sticky top-0 z-10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h2 className="font-bold text-xl text-slate-800">{title}</h2>
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={() => setIsCreating(true)} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200">
+                        <UserPlus size={18} /> <span className="hidden sm:inline">Nuevo</span>
+                    </button>
                 </div>
-                
-                <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1">
-                    {/* Identity Section */}
-                    <div className="flex items-center gap-4 mb-4">
-                        <img src={formData.avatar} alt="Avatar" className="w-16 h-16 rounded-full object-cover border-2 border-slate-100" />
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase">ID: {formData.id}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${formData.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {formData.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
-                                </span>
-                                <button type="button" onClick={toggleStatus} className="text-slate-400 hover:text-brand-600 transition-colors">
-                                    {formData.status === 'ACTIVE' ? <ToggleRight size={24} className="text-green-500"/> : <ToggleLeft size={24} className="text-slate-300"/>}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
-                        <input 
-                            value={formData.name}
-                            onChange={e => setFormData({...formData, name: e.target.value})}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-200 outline-none transition-all" 
-                        />
-                    </div>
-                    
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
-                        <div className="relative">
-                            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                            <input 
-                                value={formData.email}
-                                onChange={e => setFormData({...formData, email: e.target.value})}
-                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-200 outline-none transition-all" 
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
-                            <div className="relative">
-                                <PhoneIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                <input 
-                                    value={formData.phone || ''}
-                                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                                    placeholder="+56 9..."
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none transition-all" 
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rol</label>
-                            <select 
-                                value={formData.role}
-                                onChange={e => setFormData({...formData, role: e.target.value as Role})}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-sm outline-none focus:border-brand-500"
-                                disabled={currentUserRole !== 'ADMIN' && formData.role === 'ADMIN'} // Safety lock
-                            >
-                                <option value="CLIENT">Paciente</option>
-                                <option value="PROFESSIONAL">Profesional</option>
-                                {currentUserRole === 'ADMIN' && <option value="COORDINATOR">Coordinador</option>}
-                                {currentUserRole === 'ADMIN' && <option value="ADMIN">Admin</option>}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Program Selector for Clients (Contract) or Professionals (Specialty) */}
-                    {(formData.role === 'CLIENT' || formData.role === 'PROFESSIONAL') && (
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-                                {formData.role === 'CLIENT' ? 'Programa Contratado' : 'Enfoque Clínico'}
-                            </label>
-                            <div className="relative">
-                                <BookOpen size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                <select 
-                                    value={formData.program || 'CULPA'}
-                                    onChange={e => setFormData({...formData, program: e.target.value as ProgramType})}
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-500 appearance-none"
-                                >
-                                    <option value="CULPA">RFAI - Tratamiento de Culpa</option>
-                                    <option value="ANGUSTIA">RFAI - Tratamiento de Angustia</option>
-                                </select>
-                                <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
-                            </div>
-                        </div>
-                    )}
-
-                    {(formData.role === 'PROFESSIONAL' || formData.role === 'COORDINATOR') && (
-                        <div>
-                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Especialidad / Cargo</label>
-                             <div className="relative">
-                                <Stethoscope size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                                <input 
-                                    value={formData.specialty || ''}
-                                    onChange={e => setFormData({...formData, specialty: e.target.value})}
-                                    placeholder="Ej: Psicólogo Clínico"
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-brand-500 outline-none transition-all" 
-                                />
-                             </div>
-                        </div>
-                    )}
-
-                    <div className="pt-4 flex gap-3">
-                         <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50">
-                            Cancelar
-                        </button>
-                        <button type="submit" className="flex-1 bg-brand-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-200 hover:bg-brand-700 transform active:scale-95 transition-all flex items-center justify-center gap-2">
-                            <Save size={18} /> Guardar
-                        </button>
-                    </div>
-                </form>
             </div>
+
+            <div className="p-4 space-y-3 overflow-y-auto pb-24">
+                {filteredUsers.length === 0 && (
+                    <div className="text-center py-10 text-slate-400">
+                        <p>No hay usuarios registrados con este rol.</p>
+                    </div>
+                )}
+                {filteredUsers.map(u => (
+                    <div key={u.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center font-bold text-slate-500 text-xs border border-white shadow-sm">
+                                {u.avatarPlaceholder}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 text-sm">{u.perfil.nombre}</h4>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mb-1">
+                                    <span>{u.email}</span>
+                                    {u.perfil.telefono && (
+                                        <>
+                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                            <span className="flex items-center gap-1"><PhoneIcon size={10}/> {u.perfil.telefono}</span>
+                                        </>
+                                    )}
+                                </div>
+                                {u.rol.slug === RolSlug.CLIENT && (
+                                    <div className="flex flex-col gap-1 mt-1">
+                                        <div className="flex gap-2">
+                                            <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">{u.perfil.isapre || 'Sin Isapre'}</span>
+                                            <span className="text-[10px] bg-slate-50 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">{u.perfil.seguroComplementario || 'Sin Seguro'}</span>
+                                        </div>
+                                        {u.perfil.direccion && <span className="text-[10px] text-slate-400 flex items-center gap-1"><MapPin size={10}/> {u.perfil.direccion}</span>}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0">
+                             <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${u.estaActivo ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                {u.estaActivo ? 'Activo' : 'Inactivo'}
+                            </span>
+                            {u.rol.slug === RolSlug.CLIENT && (
+                                <button onClick={() => setViewingClinical(u)} className="p-2 hover:bg-brand-50 hover:text-brand-600 rounded-xl text-slate-400 transition-colors border border-transparent hover:border-brand-100" title="Ver Ficha Clínica">
+                                    <Eye size={16}/>
+                                </button>
+                            )}
+                            <button onClick={() => setEditingUser(u)} className="p-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl text-slate-400 transition-colors border border-transparent hover:border-indigo-100"><Edit size={16}/></button>
+                            <button onClick={() => handleDelete(u.id)} className="p-2 hover:bg-red-50 hover:text-red-600 rounded-xl text-slate-400 transition-colors border border-transparent hover:border-red-100"><Trash2 size={16}/></button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {viewingClinical && <PatientClinicalRecord user={viewingClinical} onClose={() => setViewingClinical(null)} />}
+            {editingUser && <UserEditModal user={editingUser} onSave={handleUpdate} onClose={() => setEditingUser(null)} currentUserRole={RolSlug.ADMIN} />}
+            {isCreating && (
+                <ModalLayout title={`Crear ${title.slice(0, -1)}`} onClose={() => setIsCreating(false)}>
+                    <form onSubmit={handleCreate} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
+                            <input required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                            <input required type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input required type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:border-brand-500 outline-none" placeholder="123" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                                <input value={newUser.phone} onChange={e => setNewUser({...newUser, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                            </div>
+                        </div>
+
+                        {roleFilter === RolSlug.CLIENT && (
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                                <p className="text-xs font-bold text-brand-600 uppercase mb-2">Datos Clínicos</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Isapre/Prev</label>
+                                        <input value={newUser.isapre} onChange={e => setNewUser({...newUser, isapre: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Ej: Colmena" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Seguro Compl.</label>
+                                        <input value={newUser.seguro} onChange={e => setNewUser({...newUser, seguro: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Ej: MetLife" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dirección</label>
+                                        <input value={newUser.address} onChange={e => setNewUser({...newUser, address: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Calle, Número, Comuna" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Programa a Cursar</label>
+                                    <select value={newUser.selectedProgramId} onChange={e => setNewUser({...newUser, selectedProgramId: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500">
+                                        <option value="">Seleccione un programa...</option>
+                                        {ALL_PROGRAMS.map(prog => (
+                                            <option key={prog.id} value={prog.id}>{prog.nombre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {roleFilter === RolSlug.PROFESSIONAL && (
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Asignar Programas (Imparte)</label>
+                                <div className="space-y-2">
+                                    {ALL_PROGRAMS.map(prog => (
+                                        <label key={prog.id} className="flex items-center gap-2 cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={newUser.programs.includes(prog.id)} 
+                                                onChange={() => toggleProgram(prog.id)}
+                                                className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                            />
+                                            <span className="text-sm text-slate-700">{prog.nombre}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <input type="hidden" value={roleFilter} />
+                        
+                        <button type="submit" className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-brand-700 shadow-lg shadow-brand-200 transition-all">Crear Usuario</button>
+                    </form>
+                </ModalLayout>
+            )}
         </div>
     );
 };
 
 // ==========================================
-// CONTENT MANAGEMENT COMPONENT (Mobile Optimized)
+// 2. GESTIÓN DE PROGRAMAS (Actualizado con Selección de Recursos)
 // ==========================================
 
-interface ContentItem {
-    id: number;
-    type: 'AUDIO' | 'GUIDE' | 'TEST' | 'DOC';
-    title: string;
-    prog: 'CULPA' | 'ANGUSTIA' | 'AMBOS';
-    details: string; // duration, items, etc.
-}
+const AdminProgramManagement: React.FC = () => {
+    const [programs, setPrograms] = useState<Programa[]>(ALL_PROGRAMS);
+    const [editingProg, setEditingProg] = useState<Programa | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [formData, setFormData] = useState<Partial<Programa>>({ recursosAsignadosIds: [] });
 
-const ContentManager: React.FC = () => {
-    const [activeType, setActiveType] = useState<'AUDIO' | 'GUIDE' | 'TEST' | 'DOC'>('AUDIO');
-    const [showUploadModal, setShowUploadModal] = useState(false);
-    
-    // Mock Data State
-    const [resources, setResources] = useState<ContentItem[]>([
-        { id: 1, type: 'AUDIO', title: 'S1: Desactivar la Alerta', prog: 'CULPA', details: '15:00 min' },
-        { id: 2, type: 'AUDIO', title: 'S1: Validación Angustia', prog: 'ANGUSTIA', details: '12:30 min' },
-        { id: 3, type: 'GUIDE', title: 'Guía S1: Comprensión', prog: 'AMBOS', details: '4 Pasos' },
-        { id: 4, type: 'TEST', title: 'Test Inicial RFAI', prog: 'CULPA', details: '7 Items' },
-        { id: 5, type: 'TEST', title: 'Test Angustia RFAI', prog: 'ANGUSTIA', details: '15 Items' },
-        { id: 6, type: 'DOC', title: 'Manual de Bienvenida', prog: 'AMBOS', details: 'PDF 2.4MB' },
-    ]);
+    const handleDelete = (id: string) => {
+        if(confirm('¿Eliminar este programa?')) {
+            setPrograms(prev => prev.filter(p => p.id !== id));
+        }
+    };
 
-    const filteredResources = resources.filter(r => r.type === activeType);
+    const handleSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isCreating) {
+            const newProg: Programa = {
+                id: `p-${Date.now()}`,
+                nombre: formData.nombre || 'Nuevo Programa',
+                descripcion: formData.descripcion || '',
+                precio: Number(formData.precio) || 0,
+                recursosAsignadosIds: formData.recursosAsignadosIds || []
+            };
+            setPrograms([...programs, newProg]);
+        } else if (editingProg) {
+            setPrograms(prev => prev.map(p => p.id === editingProg.id ? { ...p, ...formData } as Programa : p));
+        }
+        setEditingProg(null);
+        setIsCreating(false);
+        setFormData({ recursosAsignadosIds: [] });
+    };
 
-    const handleDelete = (id: number) => {
-        if(confirm('¿Estás seguro de eliminar este recurso?')) {
+    const openEdit = (prog: Programa) => {
+        setEditingProg(prog);
+        setFormData(prog);
+    };
+
+    const toggleRecurso = (resId: string) => {
+        setFormData(prev => {
+            const current = prev.recursosAsignadosIds || [];
+            if (current.includes(resId)) {
+                return { ...prev, recursosAsignadosIds: current.filter(id => id !== resId) };
+            } else {
+                return { ...prev, recursosAsignadosIds: [...current, resId] };
+            }
+        });
+    };
+
+    // Helper UI for Resource Checkbox
+    const ResourceSelector = ({ type, title, icon: Icon }: { type: TipoRecurso, title: string, icon: any }) => (
+        <div className="mb-4">
+            <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-2"><Icon size={12}/> {title}</h4>
+            <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar border border-slate-100 rounded-xl p-2 bg-slate-50">
+                {ALL_RESOURCES.filter(r => r.tipo === type).map(res => (
+                    <label key={res.id} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-100 rounded">
+                        <input 
+                            type="checkbox" 
+                            checked={(formData.recursosAsignadosIds || []).includes(res.id)}
+                            onChange={() => toggleRecurso(res.id)}
+                            className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                        />
+                        <span className="text-xs text-slate-700 truncate">{res.titulo}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="h-full bg-slate-50 flex flex-col">
+            <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                <h2 className="font-bold text-xl text-slate-800">Programas Clínicos</h2>
+                <button onClick={() => setIsCreating(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                    <Plus size={18} /> Crear Programa
+                </button>
+            </div>
+
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-24">
+                {programs.map(prog => (
+                    <div key={prog.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm relative group hover:shadow-lg transition-shadow">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                                <Briefcase size={24} />
+                            </div>
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => openEdit(prog)} className="p-2 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-colors"><Edit size={16}/></button>
+                                <button onClick={() => handleDelete(prog.id)} className="p-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-colors"><Trash2 size={16}/></button>
+                            </div>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">{prog.nombre}</h3>
+                        <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{prog.descripcion}</p>
+                        
+                        {/* Protocolo Clínico Display */}
+                        <div className="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2">
+                             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Recursos Asignados</h4>
+                             <div className="flex flex-wrap gap-2">
+                                 {(prog.recursosAsignadosIds || []).length > 0 ? (
+                                     <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded">
+                                         {(prog.recursosAsignadosIds || []).length} items
+                                     </span>
+                                 ) : (
+                                     <span className="text-xs text-slate-400">Sin recursos seleccionados</span>
+                                 )}
+                             </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Valor Programa</span>
+                            <span className="text-lg font-bold text-slate-800">${prog.precio.toLocaleString('es-CL')}</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {(isCreating || editingProg) && (
+                <ModalLayout title={isCreating ? "Nuevo Programa" : "Editar Programa"} onClose={() => { setIsCreating(false); setEditingProg(null); }}>
+                    <form onSubmit={handleSave} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre del Programa</label>
+                            <input required value={formData.nombre || ''} onChange={e => setFormData({...formData, nombre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="Ej: RFAI Ansiedad" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descripción</label>
+                            <textarea required value={formData.descripcion || ''} onChange={e => setFormData({...formData, descripcion: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none h-20 resize-none" placeholder="Objetivos del programa..." />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Precio (CLP)</label>
+                            <input required type="number" value={formData.precio || ''} onChange={e => setFormData({...formData, precio: Number(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 outline-none" placeholder="250000" />
+                        </div>
+
+                        {/* Resource Selection Area */}
+                        <div className="border-t border-slate-100 pt-4 mt-2">
+                            <h3 className="text-sm font-bold text-slate-800 mb-3">Asignación de Recursos</h3>
+                            <ResourceSelector type="AUDIO" title="Audios Terapéuticos" icon={Headphones} />
+                            <ResourceSelector type="GUIA" title="Guías de Trabajo" icon={ClipboardList} />
+                            <ResourceSelector type="TEST" title="Evaluaciones" icon={FileText} />
+                        </div>
+
+                        <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all">Guardar</button>
+                    </form>
+                </ModalLayout>
+            )}
+        </div>
+    );
+};
+
+// ==========================================
+// 3. GESTIÓN DE DOCUMENTOS (RECURSOS)
+// ==========================================
+
+const AdminDocumentManagement: React.FC = () => {
+    const [resources, setResources] = useState<Recurso[]>(ALL_RESOURCES);
+    const [filter, setFilter] = useState<'ALL' | 'AUDIO' | 'TEST' | 'GUIA'>('ALL');
+    const [isCreating, setIsCreating] = useState(false);
+    const [formData, setFormData] = useState<Partial<Recurso>>({ tipo: 'AUDIO', categoriaId: 'AUDIO' });
+
+    const handleDelete = (id: string) => {
+        if(confirm('¿Eliminar recurso permanentemente?')) {
             setResources(prev => prev.filter(r => r.id !== id));
         }
     };
 
-    return (
-        <div className="h-full bg-slate-50 flex flex-col relative">
-            {/* Header Sticky */}
-            <div className="bg-white px-4 py-3 border-b border-slate-100 flex justify-between items-center sticky top-0 z-20 shadow-sm safe-area-top">
-                <div>
-                    <h2 className="font-bold text-lg text-slate-800 leading-tight">Biblioteca RFAI</h2>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Gestión de Contenidos</p>
-                </div>
-                <button 
-                    onClick={() => setShowUploadModal(true)} 
-                    className="bg-slate-900 text-white p-2 md:px-4 md:py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95"
-                >
-                    <Plus size={20} /> <span className="hidden md:inline">Crear Nuevo</span>
-                </button>
-            </div>
+    const handleCreate = (e: React.FormEvent) => {
+        e.preventDefault();
+        const newRes: Recurso = {
+            id: `rec-${Date.now()}`,
+            titulo: formData.titulo || 'Sin Título',
+            url: formData.url || '#',
+            tipo: formData.tipo as any,
+            categoriaId: formData.tipo as any, // Simplifying mapping
+        };
+        setResources([newRes, ...resources]);
+        setIsCreating(false);
+        setFormData({ tipo: 'AUDIO', categoriaId: 'AUDIO' });
+    };
 
-            {/* Filter Tabs - Horizontal Scroll for Mobile */}
-            <div className="bg-white border-b border-slate-50">
-                <div className="flex overflow-x-auto py-3 px-4 gap-3 no-scrollbar snap-x">
-                    {[
-                        { id: 'AUDIO', label: 'Audios', icon: Headphones, color: 'indigo' },
-                        { id: 'GUIDE', label: 'Guías', icon: FileText, color: 'amber' },
-                        { id: 'TEST', label: 'Tests', icon: CheckSquare, color: 'teal' },
-                        { id: 'DOC', label: 'Docs', icon: File, color: 'blue' },
-                    ].map((item) => (
+    const filtered = resources.filter(r => filter === 'ALL' || r.tipo === filter);
+
+    return (
+        <div className="h-full bg-slate-50 flex flex-col">
+            <div className="bg-white p-4 border-b border-slate-100 flex flex-col gap-4 sticky top-0 z-10">
+                <div className="flex justify-between items-center">
+                    <h2 className="font-bold text-xl text-slate-800">Biblioteca de Recursos</h2>
+                    <button onClick={() => setIsCreating(true)} className="bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-colors shadow-lg shadow-teal-200">
+                        <Upload size={18} /> Subir
+                    </button>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                    {['ALL', 'AUDIO', 'TEST', 'GUIA'].map(type => (
                         <button 
-                            key={item.id}
-                            onClick={() => setActiveType(item.id as any)} 
-                            className={`snap-start shrink-0 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${activeType === item.id 
-                                ? `bg-${item.color}-50 text-${item.color}-700 border-${item.color}-200 ring-1 ring-${item.color}-200` 
-                                : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}`}
+                            key={type} 
+                            onClick={() => setFilter(type as any)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${filter === type ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
                         >
-                            <item.icon size={16}/> {item.label}
+                            {type === 'ALL' ? 'Todos' : type}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Content Grid */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-                {filteredResources.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 animate-pulse"><Upload size={32} className="opacity-50"/></div>
-                        <p className="text-sm font-medium">No hay contenidos aquí</p>
-                        <p className="text-xs">Sube un nuevo archivo para comenzar</p>
-                    </div>
-                ) : (
-                    filteredResources.map((res) => (
-                        <div key={res.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group active:scale-[0.98] transition-all duration-200">
-                            <div className="flex items-center gap-4 overflow-hidden">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${res.type === 'AUDIO' ? 'bg-indigo-50 text-indigo-600' : res.type === 'GUIDE' ? 'bg-amber-50 text-amber-600' : res.type === 'TEST' ? 'bg-teal-50 text-teal-600' : 'bg-blue-50 text-blue-600'}`}>
-                                    {res.type === 'AUDIO' ? <Headphones size={20} /> : res.type === 'GUIDE' ? <FileText size={20} /> : res.type === 'TEST' ? <CheckSquare size={20} /> : <File size={20} />}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <h4 className="font-bold text-slate-800 text-sm truncate">{res.title}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${res.prog === 'ANGUSTIA' ? 'bg-indigo-100 text-indigo-700' : res.prog === 'CULPA' ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'}`}>{res.prog}</span>
-                                        <span className="text-[10px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{res.details}</span>
-                                    </div>
-                                </div>
+            <div className="p-4 space-y-3 overflow-y-auto">
+                {filtered.map(res => (
+                    <div key={res.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group hover:shadow-md transition-all">
+                        <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${res.tipo === 'AUDIO' ? 'bg-indigo-500' : res.tipo === 'TEST' ? 'bg-rose-500' : 'bg-teal-500'}`}>
+                                {res.tipo === 'AUDIO' ? <HardDrive size={20}/> : res.tipo === 'TEST' ? <FileText size={20}/> : <Briefcase size={20}/>}
                             </div>
-                            <div className="flex items-center gap-1 ml-2">
-                                <button className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-brand-50 hover:text-brand-600 border border-transparent hover:border-brand-100 transition-all"><Edit size={18} /></button>
-                                <button onClick={() => handleDelete(res.id)} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 border border-transparent hover:border-red-100 transition-all"><Trash2 size={18} /></button>
+                            <div>
+                                <h4 className="font-bold text-slate-800 text-sm">{res.titulo}</h4>
+                                <a href={res.url} className="text-xs text-brand-500 hover:underline flex items-center gap-1"><Link size={10}/> {res.url}</a>
                             </div>
                         </div>
-                    ))
-                )}
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleDelete(res.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* Create/Upload Modal (Mobile Bottom Sheet Style) */}
-            {showUploadModal && (
-                <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center sm:p-4">
-                    <div className="bg-white w-full max-w-lg rounded-t-[2rem] md:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh]">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="font-bold text-xl text-slate-800">Crear Recurso</h3>
-                            <button onClick={() => setShowUploadModal(false)} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><X size={20}/></button>
+            {isCreating && (
+                <ModalLayout title="Subir Nuevo Recurso" onClose={() => setIsCreating(false)}>
+                    <form onSubmit={handleCreate} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título del Recurso</label>
+                            <input required value={formData.titulo || ''} onChange={e => setFormData({...formData, titulo: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none" />
                         </div>
-                        
-                        <div className="p-6 space-y-6 overflow-y-auto">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Tipo de Recurso</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={() => setActiveType('AUDIO')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'AUDIO' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500' : 'border-slate-200 text-slate-500'}`}><Headphones size={18}/> Audio</button>
-                                    <button onClick={() => setActiveType('DOC')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'DOC' ? 'border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500' : 'border-slate-200 text-slate-500'}`}><File size={18}/> Doc</button>
-                                    <button onClick={() => setActiveType('GUIDE')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'GUIDE' ? 'border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-500' : 'border-slate-200 text-slate-500'}`}><FileText size={18}/> Guía</button>
-                                    <button onClick={() => setActiveType('TEST')} className={`p-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeType === 'TEST' ? 'border-teal-500 bg-teal-50 text-teal-700 ring-1 ring-teal-500' : 'border-slate-200 text-slate-500'}`}><CheckSquare size={18}/> Test</button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Título</label>
-                                    <input type="text" placeholder="Ej: Audio Semana 1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-slate-400 focus:ring-0 outline-none transition-all" />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Programa</label>
-                                    <div className="relative">
-                                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none appearance-none">
-                                            <option value="AMBOS">Ambos Programas</option>
-                                            <option value="CULPA">RFAI Culpa</option>
-                                            <option value="ANGUSTIA">RFAI Angustia</option>
-                                        </select>
-                                        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"/>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dynamic Upload/Create Area */}
-                            <div className="pt-2">
-                                {(activeType === 'AUDIO' || activeType === 'DOC') && (
-                                    <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-brand-400 transition-colors cursor-pointer group">
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors">
-                                            <Upload size={24} />
-                                        </div>
-                                        <span className="text-sm font-bold text-slate-600">Subir Archivo</span>
-                                        <span className="text-xs mt-1">MP3, PDF, DOCX (Max 50MB)</span>
-                                    </div>
-                                )}
-
-                                {activeType === 'GUIDE' && (
-                                    <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 flex flex-col items-center text-center">
-                                        <FileText size={32} className="text-amber-400 mb-3" />
-                                        <h4 className="font-bold text-amber-800 text-sm mb-1">Constructor de Guías</h4>
-                                        <p className="text-xs text-amber-600 mb-4">Crea pasos interactivos y preguntas reflexivas.</p>
-                                        <button className="w-full bg-white border border-amber-200 text-amber-700 font-bold py-3 rounded-xl text-sm hover:bg-amber-100 shadow-sm">Abrir Editor</button>
-                                    </div>
-                                )}
-
-                                {activeType === 'TEST' && (
-                                    <div className="bg-teal-50 rounded-2xl p-5 border border-teal-100 flex flex-col items-center text-center">
-                                        <CheckSquare size={32} className="text-teal-400 mb-3" />
-                                        <h4 className="font-bold text-teal-800 text-sm mb-1">Constructor de Tests</h4>
-                                        <p className="text-xs text-teal-600 mb-4">Define escalas y preguntas de evaluación.</p>
-                                        <button className="w-full bg-white border border-teal-200 text-teal-700 font-bold py-3 rounded-xl text-sm hover:bg-teal-100 shadow-sm">Configurar Test</button>
-                                    </div>
-                                )}
-                            </div>
-
-                            <button className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-xl shadow-slate-200 hover:bg-slate-800 active:scale-[0.98] transition-all">
-                                Guardar Recurso
-                            </button>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo</label>
+                            <select value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value as any})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none">
+                                <option value="AUDIO">Audio (MP3)</option>
+                                <option value="TEST">Evaluación</option>
+                                <option value="GUIA">Guía PDF/Texto</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">URL / Enlace Cloud</label>
+                            <input required value={formData.url || ''} onChange={e => setFormData({...formData, url: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-teal-500 outline-none" placeholder="https://..." />
+                        </div>
+                        <button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-teal-700 shadow-lg shadow-teal-200 transition-all">Subir Archivo</button>
+                    </form>
+                </ModalLayout>
             )}
         </div>
     );
 };
 
 // ==========================================
-// SHARED COMPONENTS (CALENDAR & LISTS)
+// 4. CALENDARIO (Actualizado con Lógica de Negocio y Link)
 // ==========================================
 
-const ProCalendarModule: React.FC<{ onSelectClient: (c: ClientProfile) => void }> = ({ onSelectClient }) => {
-    const [selectedDate, setSelectedDate] = useState(new Date());
-    const [appointments, setAppointments] = useState<any[]>([]);
+const AdminCalendarView: React.FC = () => {
+    const [citas, setCitas] = useState<Calendario[]>(MOCK_APPOINTMENTS);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isEditing, setIsEditing] = useState<Calendario | null>(null);
 
-    useEffect(() => {
-        const day = selectedDate.getDay();
-        const apps = (day === 0 || day === 6) ? [] : [
-            { id: 'apt-1', time: '09:00', duration: 60, type: 'Evaluación Inicial', client: ALL_USERS[3] as ClientProfile, status: 'completed' },
-            { id: 'apt-2', time: '11:30', duration: 45, type: 'Sesión de Seguimiento', client: ALL_USERS[4] as ClientProfile, status: 'pending' },
-            { id: 'apt-3', time: '15:00', duration: 60, type: 'Revisión de Guía', client: ALL_USERS[7] as ClientProfile, status: 'pending' }, 
-        ];
-        setAppointments(day % 2 === 0 ? apps : [apps[1], apps[0]]);
-    }, [selectedDate]);
+    // Form Data States
+    const [selectedPatientId, setSelectedPatientId] = useState('');
+    const [appointmentDate, setAppointmentDate] = useState('');
+    const [appointmentTime, setAppointmentTime] = useState('');
+    const [meetLink, setMeetLink] = useState('https://meet.google.com/abc-defg-hij');
+    const [sessionType, setSessionType] = useState('1'); // '1' = Inicio, '4' = Cierre
 
-    const weekDays = Array.from({length: 14}, (_, i) => {
-        const d = new Date(); d.setDate(new Date().getDate() + i); return d;
+    // Patients List
+    const patients = ALL_USERS.filter(u => u.rol.slug === RolSlug.CLIENT);
+
+    // Derived Logic: Get Program based on Patient Selection
+    const selectedPatient = patients.find(p => p.id === selectedPatientId);
+    const patientProgramName = selectedPatient?.inscripciones?.[0]?.programa?.nombre || 'Sin Programa';
+
+    const handleDelete = (id: string) => {
+        if(confirm('¿Cancelar esta cita?')) {
+            setCitas(prev => prev.filter(c => c.id !== id));
+        }
+    };
+
+    const handleCreate = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPatientId || !appointmentDate || !appointmentTime) return;
+
+        const dateObj = new Date(`${appointmentDate}T${appointmentTime}`);
+        
+        const newCita: Calendario = {
+            id: `cal-${Date.now()}`,
+            profesionalId: 'u-prof', // Hardcoded for Demo
+            pacienteId: selectedPatientId,
+            fechaHora: dateObj.toISOString(),
+            modalidad: ModalidadCita.ONLINE,
+            linkReunion: meetLink
+        };
+
+        setCitas([...citas, newCita]);
+        setIsCreating(false);
+        resetForm();
+    };
+
+    const handleEditSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!isEditing) return;
+        
+        const dateObj = new Date(`${appointmentDate}T${appointmentTime}`);
+
+        setCitas(prev => prev.map(c => c.id === isEditing.id ? {
+            ...c,
+            fechaHora: dateObj.toISOString(),
+            linkReunion: meetLink
+        } : c));
+
+        setIsEditing(null);
+        resetForm();
+    };
+
+    const openEdit = (cita: Calendario) => {
+        setIsEditing(cita);
+        const d = new Date(cita.fechaHora);
+        // Format for input datetime-local logic (simplified split)
+        const datePart = d.toISOString().split('T')[0];
+        const timePart = d.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+        
+        setAppointmentDate(datePart);
+        setAppointmentTime(timePart);
+        setMeetLink(cita.linkReunion || 'https://meet.google.com/abc-defg-hij');
+        setSelectedPatientId(cita.pacienteId); // Read only in edit usually
+    };
+
+    const resetForm = () => {
+        setSelectedPatientId('');
+        setAppointmentDate('');
+        setAppointmentTime('');
+        setMeetLink('https://meet.google.com/abc-defg-hij');
+        setSessionType('1');
+    };
+
+    const getProfessionalName = (id: string) => ALL_USERS.find(u => u.id === id)?.perfil.nombre || 'Desconocido';
+    const getPatientName = (id: string) => ALL_USERS.find(u => u.id === id)?.perfil.nombre || 'Desconocido';
+
+    return (
+        <div className="h-full bg-slate-50 flex flex-col">
+            <div className="bg-white p-4 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                <h2 className="font-bold text-xl text-slate-800">Calendario Clínico</h2>
+                <div className="flex gap-2">
+                    <button onClick={() => setIsCreating(true)} className="bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-brand-700 transition-colors shadow-lg shadow-brand-200">
+                        <Plus size={18} /> Nueva Cita
+                    </button>
+                </div>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto">
+                {citas.length === 0 && <p className="text-center text-slate-400 py-10">No hay citas programadas.</p>}
+                
+                {citas.map(cita => (
+                    <div key={cita.id} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <div className="flex flex-col items-center justify-center w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
+                                <span className="text-xs font-bold uppercase">{new Date(cita.fechaHora).toLocaleString('es-CL', {month: 'short'}).slice(0,3)}</span>
+                                <span className="text-xl font-bold">{new Date(cita.fechaHora).getDate()}</span>
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+                                    <Clock size={12}/> {new Date(cita.fechaHora).toLocaleTimeString('es-CL', {hour: '2-digit', minute: '2-digit'})} hrs
+                                    <span className="text-slate-300">•</span>
+                                    {cita.modalidad === 'Teleconsulta' ? <Video size={12}/> : <MapPin size={12}/>} {cita.modalidad}
+                                </div>
+                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                                    {getPatientName(cita.pacienteId)} 
+                                    <span className="text-slate-300 font-normal">con</span>
+                                    <span className="text-brand-600">{getProfessionalName(cita.profesionalId)}</span>
+                                </h3>
+                                {cita.linkReunion && (
+                                    <a href={cita.linkReunion} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline flex items-center gap-1 mt-1">
+                                        <ExternalLink size={10}/> {cita.linkReunion}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        <div className="w-full md:w-auto flex justify-end gap-2">
+                            <button onClick={() => openEdit(cita)} className="px-4 py-2 rounded-xl border border-indigo-100 text-indigo-600 text-sm font-bold hover:bg-indigo-50 transition-colors">Editar</button>
+                            <button onClick={() => handleDelete(cita.id)} className="px-4 py-2 rounded-xl border border-red-100 text-red-500 text-sm font-bold hover:bg-red-50 transition-colors">Cancelar</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Create Modal */}
+            {isCreating && (
+                <ModalLayout title="Nueva Cita Clínica" onClose={() => { setIsCreating(false); resetForm(); }}>
+                    <form onSubmit={handleCreate} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Paciente</label>
+                            <select required value={selectedPatientId} onChange={e => setSelectedPatientId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none">
+                                <option value="">Seleccione Paciente...</option>
+                                {patients.map(p => (
+                                    <option key={p.id} value={p.id}>{p.perfil.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                        {/* Auto-detected Info Box */}
+                        <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+                             <p className="text-xs text-indigo-800 font-bold mb-1">Programa Detectado:</p>
+                             <p className="text-sm text-indigo-600">{patientProgramName}</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Sesión (Protocolo)</label>
+                            <select value={sessionType} onChange={e => setSessionType(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none">
+                                <option value="1">Sesión 1 - Inicio de Tratamiento</option>
+                                <option value="4">Sesión 4 - Cierre de Tratamiento</option>
+                            </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha</label>
+                                <input required type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hora</label>
+                                <input required type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                            </div>
+                        </div>
+
+                         <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link de Reunión (Google Meet)</label>
+                            <input required value={meetLink} onChange={e => setMeetLink(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none text-slate-600" />
+                        </div>
+
+                        <button type="submit" className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-brand-700 shadow-lg shadow-brand-200 transition-all">Agendar Cita</button>
+                    </form>
+                </ModalLayout>
+            )}
+
+            {/* Edit Modal */}
+            {isEditing && (
+                 <ModalLayout title="Editar Cita" onClose={() => { setIsEditing(null); resetForm(); }}>
+                    <form onSubmit={handleEditSave} className="space-y-4">
+                        <div className="p-3 bg-slate-100 rounded-xl mb-4">
+                             <p className="text-xs font-bold text-slate-500 uppercase">Paciente</p>
+                             <p className="font-bold text-slate-700">{getPatientName(isEditing.pacienteId)}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha</label>
+                                <input required type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Hora</label>
+                                <input required type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                            </div>
+                        </div>
+
+                         <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Link de Reunión (Google Meet)</label>
+                            <input required value={meetLink} onChange={e => setMeetLink(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none text-slate-600" />
+                        </div>
+
+                        <button type="submit" className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl mt-4 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all">Guardar Cambios</button>
+                    </form>
+                 </ModalLayout>
+            )}
+        </div>
+    );
+};
+
+// ==========================================
+// USER EDIT MODAL (Reused/Updated)
+// ==========================================
+
+const UserEditModal: React.FC<{ user: UsuarioConectado; onSave: (u: UsuarioConectado) => void; onClose: () => void; currentUserRole: RolSlug }> = ({ user, onSave, onClose, currentUserRole }) => {
+    const [formData, setFormData] = useState({
+        nombre: user.perfil.nombre,
+        email: user.email,
+        password: user.password || '',
+        telefono: user.perfil.telefono || '',
+        estaActivo: user.estaActivo,
+        programs: user.programasIds || [],
+        isapre: user.perfil.isapre || '',
+        seguro: user.perfil.seguroComplementario || '',
+        selectedProgramId: user.inscripciones?.[0]?.programaId || '',
+        address: user.perfil.direccion || ''
     });
 
-    return (
-        <div className="h-full flex flex-col bg-slate-50">
-            <div className="bg-white px-6 py-6 border-b border-slate-100 shadow-sm z-10 sticky top-0">
-                <div className="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 capitalize">
-                            {selectedDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                        </h2>
-                        <p className="text-slate-500 text-sm">Agenda RFAI</p>
-                    </div>
-                    <button className="bg-brand-50 text-brand-700 p-3 rounded-xl hover:bg-brand-100 transition-colors">
-                        <CalendarIcon size={20} />
-                    </button>
-                </div>
-                <div className="flex overflow-x-auto gap-3 pb-2 -mx-2 px-2 no-scrollbar">
-                    {weekDays.map((date, idx) => {
-                        const isSelected = date.toDateString() === selectedDate.toDateString();
-                        const isToday = date.toDateString() === new Date().toDateString();
-                        return (
-                            <button key={idx} onClick={() => setSelectedDate(date)} className={`flex flex-col items-center justify-center min-w-[4.5rem] h-20 rounded-2xl border transition-all duration-300 ${isSelected ? 'bg-brand-600 border-brand-600 text-white shadow-lg shadow-brand-200 scale-105' : 'bg-white border-slate-100 text-slate-400 hover:border-brand-200'}`}>
-                                <span className="text-xs font-medium uppercase tracking-wider mb-1">{date.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
-                                <span className={`text-xl font-bold ${isSelected ? 'text-white' : isToday ? 'text-brand-600' : 'text-slate-700'}`}>{date.getDate()}</span>
-                                {isToday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-brand-500 mt-1"></span>}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        let inscripcionesUpdate = user.inscripciones;
+        
+        // Update program logic for Client
+        if (user.rol.slug === RolSlug.CLIENT && formData.selectedProgramId) {
+             const selectedProg = ALL_PROGRAMS.find(p => p.id === formData.selectedProgramId);
+             if (selectedProg) {
+                // Simplified Logic: Replace inscription
+                inscripcionesUpdate = [{
+                    id: `ins-${user.id}`, pacienteId: user.id, programaId: selectedProg.id, fechaInicio: new Date().toISOString(),
+                    estado: EstadoInscripcion.ACTIVO, programa: selectedProg, progreso: []
+                }];
+             }
+        }
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6">
-                {appointments.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
-                        <CalendarIcon size={48} className="mb-4 text-slate-300" />
-                        <p>No hay citas programadas para este día.</p>
+        onSave({
+            ...user,
+            email: formData.email,
+            password: formData.password,
+            estaActivo: formData.estaActivo,
+            programasIds: user.rol.slug === RolSlug.PROFESSIONAL ? formData.programs : undefined,
+            inscripciones: inscripcionesUpdate,
+            perfil: { 
+                ...user.perfil, 
+                nombre: formData.nombre, 
+                telefono: formData.telefono,
+                isapre: formData.isapre,
+                seguroComplementario: formData.seguro,
+                direccion: formData.address // Save Address
+            }
+        });
+        onClose();
+    };
+
+    const toggleProgram = (progId: string) => {
+        setFormData(prev => {
+            const exists = prev.programs.includes(progId);
+            return {
+                ...prev,
+                programs: exists ? prev.programs.filter(id => id !== progId) : [...prev.programs, progId]
+            }
+        });
+    };
+
+    return (
+        <ModalLayout title="Editar Usuario" onClose={onClose}>
+             <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex items-center gap-4 mb-4 p-4 bg-slate-50 rounded-2xl">
+                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center font-bold text-slate-500 shadow-sm">{user.avatarPlaceholder}</div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase">ID: {user.id}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <button type="button" onClick={() => setFormData(p => ({...p, estaActivo: !p.estaActivo}))} className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase flex items-center gap-1 transition-colors ${formData.estaActivo ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}>
+                                <Power size={10}/> {formData.estaActivo ? 'Activo' : 'Inactivo'}
+                            </button>
+                        </div>
                     </div>
-                ) : (
-                    <div className="space-y-4">
-                        {appointments.map((apt) => {
-                            const isAngustia = apt.client.program === 'ANGUSTIA';
-                            return (
-                                <div key={apt.id} className="flex gap-4 group">
-                                    <div className="flex flex-col items-center min-w-[3.5rem] pt-2">
-                                        <span className="font-bold text-slate-800">{apt.time}</span>
-                                        <div className="h-full w-0.5 bg-slate-200 mt-2 group-last:bg-transparent relative">
-                                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300"></div>
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${apt.status === 'completed' ? 'bg-slate-300' : isAngustia ? 'bg-indigo-500' : 'bg-brand-500'}`}></div>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${apt.status === 'completed' ? 'bg-slate-100 text-slate-500' : isAngustia ? 'bg-indigo-50 text-indigo-700' : 'bg-brand-50 text-brand-700'}`}>{apt.type}</span>
-                                            <MoreVertical size={16} className="text-slate-300"/>
-                                        </div>
-                                        <div className="flex items-center gap-4 mb-4 cursor-pointer" onClick={() => onSelectClient(apt.client)}>
-                                            <img src={apt.client.avatar} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" alt="" />
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-lg leading-tight">{apt.client.name}</h3>
-                                                <p className="text-slate-500 text-xs">Semana {apt.client.currentWeek} • {apt.client.program}</p>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <a href="#" className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-colors ${apt.status === 'completed' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
-                                                <Video size={16} /> {apt.status === 'completed' ? 'Finalizada' : 'Unirse'}
-                                            </a>
-                                            <button onClick={() => onSelectClient(apt.client)} className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors">
-                                                <FileText size={16} /> Ficha
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
+                    <input value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                    <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:border-brand-500 outline-none" type="text" />
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                    <input value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 outline-none" />
+                </div>
+
+                {/* Patient Specific Fields */}
+                {user.rol.slug === RolSlug.CLIENT && (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3">
+                        <p className="text-xs font-bold text-brand-600 uppercase mb-2">Datos Clínicos</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Isapre/Prev</label>
+                                <input value={formData.isapre} onChange={e => setFormData({...formData, isapre: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Seguro Compl.</label>
+                                <input value={formData.seguro} onChange={e => setFormData({...formData, seguro: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dirección</label>
+                                <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Programa</label>
+                            <select value={formData.selectedProgramId} onChange={e => setFormData({...formData, selectedProgramId: e.target.value})} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-500">
+                                <option value="">Seleccione...</option>
+                                {ALL_PROGRAMS.map(prog => (
+                                    <option key={prog.id} value={prog.id}>{prog.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 )}
-            </div>
-        </div>
-    );
-};
 
-const ProClientsList: React.FC<{ onSelect: (c: ClientProfile) => void, selectedId?: string, className?: string }> = ({ onSelect, selectedId, className }) => {
-    const clients = ALL_USERS.filter(u => u.role === 'CLIENT') as ClientProfile[];
-  
-    return (
-        <div className={`bg-white h-full flex flex-col ${className}`}>
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 sticky top-0 z-10 backdrop-blur-md">
-                <h3 className="font-bold text-lg text-slate-800 tracking-tight">Pacientes</h3>
-                <button className="text-brand-600 bg-brand-50 hover:bg-brand-100 p-2 rounded-full transition-colors"><UserPlus size={18} /></button>
-            </div>
-            
-            <div className="p-4 border-b border-slate-100 bg-white sticky top-[80px] z-10">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input type="text" placeholder="Buscar..." className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-all" />
+                {user.rol.slug === RolSlug.PROFESSIONAL && (
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Asignar Programas</label>
+                        <div className="space-y-2">
+                            {ALL_PROGRAMS.map(prog => (
+                                <label key={prog.id} className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={formData.programs.includes(prog.id)} 
+                                        onChange={() => toggleProgram(prog.id)}
+                                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-slate-700">{prog.nombre}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50">Cancelar</button>
+                    <button type="submit" className="flex-1 bg-brand-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-brand-700 transition-colors">Guardar</button>
                 </div>
-            </div>
-      
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24 md:pb-4">
-                {clients.map(client => {
-                     const progressPercent = (client.currentWeek / 4) * 100;
-                     const isAngustia = client.program === 'ANGUSTIA';
-                     const tags = isAngustia ? 'RFAI - Angustia' : 'RFAI - Culpa';
-                     const badgeColor = isAngustia ? 'text-indigo-600 bg-indigo-50' : 'text-brand-600 bg-brand-50';
-                     const barColor = isAngustia ? 'bg-indigo-500' : 'bg-brand-500';
-                     const borderColor = selectedId === client.id ? (isAngustia ? 'border-indigo-500 bg-indigo-50/50' : 'border-brand-500 bg-brand-50/50') : 'border-slate-100 hover:border-slate-300';
-
-                     return (
-                      <div key={client.id} onClick={() => onSelect(client)} className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 relative overflow-hidden group hover:shadow-md ${borderColor}`}>
-                        <div className="flex items-center gap-4 mb-3">
-                            <div className="relative">
-                                <img src={client.avatar} alt={client.name} className="w-12 h-12 rounded-full bg-slate-200 object-cover border-2 border-white shadow-sm" />
-                                <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${client.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'}`}></div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className={`font-bold text-sm truncate ${selectedId === client.id ? 'text-slate-900' : 'text-slate-800'}`}>{client.name}</h4>
-                                <p className="text-xs text-slate-500 font-medium">{tags}</p>
-                            </div>
-                            <div className="text-right">
-                                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${badgeColor}`}>Sem {client.currentWeek}</span>
-                            </div>
-                        </div>
-                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
-                            <div className={`${barColor} h-full rounded-full`} style={{ width: `${progressPercent}%` }}></div>
-                        </div>
-                      </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const ProClientDetail: React.FC<{ client: ClientProfile; onBack?: () => void }> = ({ client, onBack }) => {
-    const isAngustia = client.program === 'ANGUSTIA';
-    const themeColor = isAngustia ? 'text-indigo-600' : 'text-brand-600';
-    const themeBg = isAngustia ? 'bg-indigo-50' : 'bg-brand-50';
-    const chartColor = isAngustia ? '#6366f1' : '#0d9488';
-
-    // Prepare chart data
-    const scoresData = client.clinicalData.testScores.map(ts => ({
-        week: `S${ts.week}`,
-        ...ts.scores
-    }));
-
-    return (
-        <div className="h-full flex flex-col bg-white">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                <div className="flex items-center gap-4">
-                    {onBack && (
-                        <button onClick={onBack} className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-500">
-                            <ArrowLeft size={20} />
-                        </button>
-                    )}
-                    <div className="relative">
-                        <img src={client.avatar} alt={client.name} className="w-16 h-16 rounded-full object-cover border-4 border-slate-50 shadow-sm" />
-                        <span className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-white ${client.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-300'}`}></span>
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800 leading-tight">{client.name}</h2>
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                            <Mail size={14} /> {client.email}
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${themeBg} ${themeColor}`}>{client.program}</span>
-                             <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide">Semana {client.currentWeek}</span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex gap-2">
-                    <button className="p-3 rounded-xl border border-slate-200 text-slate-400 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 transition-all">
-                        <Phone size={20} />
-                    </button>
-                    <button className="p-3 rounded-xl border border-slate-200 text-slate-400 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 transition-all">
-                        <Video size={20} />
-                    </button>
-                    <button className="p-3 rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all flex items-center gap-2 font-bold text-sm">
-                        <FileText size={18} /> <span className="hidden sm:inline">Ficha Clínica</span>
-                    </button>
-                </div>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Adherencia</p>
-                        <p className={`text-2xl font-bold ${themeColor}`}>85%</p>
-                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                            <div className={`h-full ${isAngustia ? 'bg-indigo-500' : 'bg-brand-500'}`} style={{width: '85%'}}></div>
-                        </div>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Prox. Sesión</p>
-                        <p className="text-lg font-bold text-slate-700 mt-1">{client.nextSession ? new Date(client.nextSession).toLocaleDateString() : 'Pendiente'}</p>
-                        <p className="text-[10px] text-slate-400">Video conferencia</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Audios</p>
-                         <div className="flex items-end gap-2">
-                            <p className="text-2xl font-bold text-slate-700">12</p>
-                            <span className="text-xs text-green-500 font-bold mb-1 flex items-center"><TrendingUp size={12}/> +2</span>
-                         </div>
-                         <p className="text-[10px] text-slate-400">Esta semana</p>
-                    </div>
-                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Estado</p>
-                         <p className="text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded inline-block mt-1">Estable</p>
-                    </div>
-                </div>
-
-                {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Clinical Evolution */}
-                    <div className="p-6 rounded-3xl border border-slate-100 shadow-sm">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-slate-800">Evolución Clínica</h3>
-                                <p className="text-xs text-slate-400">Puntajes RFAI semanales</p>
-                            </div>
-                            <button className="text-slate-400 hover:text-slate-600"><MoreVertical size={18}/></button>
-                        </div>
-                        <div className="h-64 w-full">
-                            {scoresData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={scoresData}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                        <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                                        <Tooltip 
-                                            contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                                            itemStyle={{fontSize: '12px', fontWeight: 'bold'}}
-                                        />
-                                        {Object.keys(scoresData[0]).filter(k => k !== 'week').map((key, i) => (
-                                            <Line 
-                                                key={key} 
-                                                type="monotone" 
-                                                dataKey={key} 
-                                                stroke={['#0d9488', '#f59e0b', '#6366f1', '#ec4899'][i % 4]} 
-                                                strokeWidth={3} 
-                                                dot={{fill: 'white', strokeWidth: 2, r: 4}} 
-                                                activeDot={{r: 6}}
-                                            />
-                                        ))}
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-slate-300 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                    <Activity size={32} className="mb-2 opacity-50"/>
-                                    <span className="text-sm font-medium">Sin datos suficientes</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Audio Usage */}
-                    <div className="p-6 rounded-3xl border border-slate-100 shadow-sm">
-                         <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="font-bold text-slate-800">Uso de Herramientas</h3>
-                                <p className="text-xs text-slate-400">Minutos de escucha por día</p>
-                            </div>
-                        </div>
-                        <div className="h-64 w-full">
-                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={getDailyAudioData()}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                                    <Bar dataKey="mins" radius={[4, 4, 0, 0]}>
-                                        {getDailyAudioData().map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.mins > 40 ? chartColor : '#cbd5e1'} />
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Progress Detail */}
-                <div className="p-6 rounded-3xl border border-slate-100 shadow-sm bg-slate-50/50">
-                    <h3 className="font-bold text-slate-800 mb-4">Progreso del Programa</h3>
-                    <div className="space-y-4">
-                        {[1, 2, 3, 4].map(week => {
-                            const wKey = `week${week}` as keyof typeof client.progress;
-                            const status = client.progress[wKey];
-                            return (
-                                <div key={week} className="flex items-center gap-4 bg-white p-4 rounded-xl border border-slate-100">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${status.isCompleted ? 'bg-green-100 text-green-600' : status.isLocked ? 'bg-slate-100 text-slate-400' : `${themeBg} ${themeColor}`}`}>
-                                        {status.isCompleted ? <CheckCircle2 size={16}/> : status.isLocked ? <Lock size={14}/> : week}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className={`text-sm font-bold ${status.isLocked ? 'text-slate-400' : 'text-slate-700'}`}>Semana {week}</span>
-                                            {status.isCompleted && <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">Completado</span>}
-                                            {!status.isCompleted && !status.isLocked && <span className={`text-[10px] font-bold ${themeColor} ${themeBg} px-2 py-0.5 rounded`}>En curso</span>}
-                                        </div>
-                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                                            <div className={`h-full ${status.isCompleted ? 'bg-green-500' : !status.isLocked ? (isAngustia ? 'bg-indigo-500' : 'bg-brand-500') : 'bg-transparent'}`} style={{width: status.isCompleted ? '100%' : !status.isLocked ? '30%' : '0%'}}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-
-            </div>
-        </div>
+            </form>
+        </ModalLayout>
     );
 };
 
 // ==========================================
-// ADMINISTRATOR COMPONENTS (Improved)
+// 5. GLOBAL PANEL
 // ==========================================
 
 const AdminGlobalPanel: React.FC = () => {
-    return (
-        <div className="space-y-6 pb-24 md:pb-0">
-            <div className="flex justify-between items-end mb-2">
-                <div>
-                    <p className="text-slate-500 text-sm">Bienvenido de nuevo,</p>
-                    <h2 className="text-2xl font-bold text-slate-800">Dr. Administrador</h2>
-                </div>
-            </div>
+    const totalPatients = ALL_USERS.filter(u => u.rol.slug === RolSlug.CLIENT).length;
+    const totalProf = ALL_USERS.filter(u => u.rol.slug === RolSlug.PROFESSIONAL).length;
+    const totalActive = ALL_USERS.filter(u => u.rol.slug === RolSlug.CLIENT && u.estaActivo).length;
+    const totalPrograms = ALL_PROGRAMS.length;
 
-            {/* Top Row Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Users Stat */}
-                <div className="bg-white p-6 rounded-3xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-slate-100 relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-4">
+    const data = [
+        { name: 'Ene', value: 12 },
+        { name: 'Feb', value: 19 },
+        { name: 'Mar', value: 15 },
+        { name: 'Abr', value: 22 },
+        { name: 'May', value: 30 },
+        { name: 'Jun', value: 28 },
+    ];
+
+    return (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Usuarios</p>
-                            <h3 className="text-4xl font-bold text-slate-800 mt-1">1,240</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Pacientes</p>
+                            <h3 className="text-3xl font-bold text-slate-800 mt-2">{totalPatients}</h3>
                         </div>
-                        <div className="p-3 bg-brand-50 rounded-2xl text-brand-500">
-                            <Users size={24} />
-                        </div>
+                        <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Users size={24} /></div>
                     </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-slate-600"><span className="w-2 h-2 rounded-full bg-indigo-500"></span> Admin</span>
-                            <span className="font-bold">45</span>
+                    <div className="mt-4 flex items-center gap-1 text-xs text-green-600 font-bold">
+                        <Activity size={12} /> +12% vs mes anterior
+                    </div>
+                </div>
+                
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Profesionales</p>
+                            <h3 className="text-3xl font-bold text-slate-800 mt-2">{totalProf}</h3>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-slate-600"><span className="w-2 h-2 rounded-full bg-brand-400"></span> Pro</span>
-                            <span className="font-bold">120</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-2 text-slate-600"><span className="w-2 h-2 rounded-full bg-slate-300"></span> Client</span>
-                            <span className="font-bold">1k+</span>
-                        </div>
+                        <div className="p-3 bg-teal-50 text-teal-600 rounded-xl"><User size={24} /></div>
+                    </div>
+                     <div className="mt-4 flex items-center gap-1 text-xs text-slate-400 font-medium">
+                        Activos en plataforma
                     </div>
                 </div>
 
-                {/* Server Status (Dark Card) */}
-                <div className="bg-slate-900 p-6 rounded-3xl shadow-xl text-white relative overflow-hidden">
-                    <div className="flex items-center gap-3 mb-6">
-                        <Server className="text-brand-400" size={24} />
-                        <h3 className="font-bold tracking-wide text-brand-400">SERVIDORES</h3>
-                    </div>
-                    
-                    <div className="space-y-4 relative z-10">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                            <span className="text-slate-300 text-sm">MySQLDB (GCP)</span>
-                            <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                <span className="text-green-400 text-xs font-mono">14ms</span>
-                            </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pacientes Activos</p>
+                            <h3 className="text-3xl font-bold text-slate-800 mt-2">{totalActive}</h3>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-300 text-sm">MobaXterm SSH</span>
-                            <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                <span className="text-green-400 text-xs font-mono">CONNECTED</span>
-                            </div>
-                        </div>
+                        <div className="p-3 bg-orange-50 text-orange-600 rounded-xl"><Activity size={24} /></div>
                     </div>
-                    {/* Decorative blurred blob */}
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                    <div className="mt-4 flex items-center gap-1 text-xs text-slate-400 font-medium">
+                        En tratamiento actualmente
+                    </div>
                 </div>
-            </div>
 
-            {/* Activity Logs */}
-            <div>
-                <div className="flex justify-between items-center mb-4 px-2">
-                    <h3 className="font-bold text-lg text-slate-800">Logs de Actividad</h3>
-                    <button className="text-brand-600 text-sm font-bold">Ver Todo</button>
-                </div>
-                <div className="space-y-3">
-                    <div className="flex items-start gap-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 relative">
-                            <UserPlus size={18} />
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
+                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Programas</p>
+                            <h3 className="text-3xl font-bold text-slate-800 mt-2">{totalPrograms}</h3>
                         </div>
-                        <div className="flex-1">
-                            <div className="flex justify-between">
-                                <h4 className="font-bold text-slate-800 text-sm">Nuevo Profesional</h4>
-                                <span className="text-[10px] text-slate-400">10:42 AM</span>
-                            </div>
-                            <p className="text-xs text-slate-500">Admin creó perfil para <span className="italic text-slate-600">Dr. Alvarez</span></p>
-                        </div>
+                        <div className="p-3 bg-rose-50 text-rose-600 rounded-xl"><Briefcase size={24} /></div>
                     </div>
-
-                    <div className="flex items-start gap-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
-                            <HardDrive size={18} />
-                        </div>
-                        <div className="flex-1">
-                            <div className="flex justify-between">
-                                <h4 className="font-bold text-slate-800 text-sm">Backup MySQL</h4>
-                                <span className="text-[10px] text-slate-400">09:30 AM</span>
-                            </div>
-                            <p className="text-xs text-slate-500">Sistema completó respaldo automático en GCP Bucket.</p>
-                        </div>
+                    <div className="mt-4 flex items-center gap-1 text-xs text-slate-400 font-medium">
+                        Disponibles
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
 
-const AdminSettings: React.FC = () => {
-    return (
-        <div className="h-full bg-slate-50 flex flex-col">
-            <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-slate-100 sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                    <button className="p-2 -ml-2 hover:bg-slate-50 rounded-full text-slate-600"><ArrowLeft size={20}/></button>
-                    <h3 className="font-bold text-slate-800">Configuración RFAI</h3>
-                </div>
-                <button className="text-brand-500 font-bold text-sm">Guardar</button>
-            </div>
-
-            <div className="p-4 space-y-6 overflow-y-auto pb-24">
-                {/* Integrations */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] font-bold text-brand-500 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-brand-500 rounded-full"></span> ONLINE</span>
-                            <Video size={20} className="text-slate-200" />
-                        </div>
-                        <p className="text-[10px] text-slate-400">API Status</p>
-                        <p className="text-sm font-bold text-slate-800">Google Meet</p>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] font-bold text-brand-500 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-brand-500 rounded-full"></span> SYNCED</span>
-                            <Database size={20} className="text-slate-200" />
-                        </div>
-                        <p className="text-[10px] text-slate-400">Database</p>
-                        <p className="text-sm font-bold text-slate-800">Cloud SQL</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h4 className="font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 size={18} className="text-indigo-500"/> Ingreso de Pacientes (Semestral)</h4>
+                    <div className="h-64 w-full">
+                         <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-};
 
-const AdminUserManagement: React.FC<{ onSelectUser: (u: User) => void, currentUserRole: Role }> = ({ onSelectUser, currentUserRole }) => {
-    const [filter, setFilter] = useState<'ALL' | 'ADMIN' | 'PROF' | 'COORD' | 'CLIENT'>('ALL');
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [mockUsers, setMockUsers] = useState(ALL_USERS);
-    
-    // Filter users logic
-    const filteredUsers = mockUsers.filter(u => {
-        if (filter === 'ALL') return true;
-        if (filter === 'ADMIN') return u.role === 'ADMIN';
-        if (filter === 'PROF') return u.role === 'PROFESSIONAL';
-        if (filter === 'COORD') return u.role === 'COORDINATOR';
-        if (filter === 'CLIENT') return u.role === 'CLIENT';
-        return true;
-    });
-
-    const toggleStatus = (id: string) => {
-        setMockUsers(prev => prev.map(u => u.id === id ? { ...u, status: u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } : u));
-    };
-
-    const deleteUser = (id: string) => {
-        if(confirm('¿Eliminar usuario?')) {
-            setMockUsers(prev => prev.filter(u => u.id !== id));
-        }
-    }
-
-    const handleUpdateUser = (updated: User) => {
-        setMockUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-        setEditingUser(null);
-    };
-
-    return (
-        <div className="h-full flex flex-col bg-slate-50 relative">
-            {/* Header with Search and Add */}
-            <div className="bg-white p-4 border-b border-slate-100 sticky top-0 z-10 space-y-4">
-                <div className="flex justify-between items-center">
-                    <h2 className="font-bold text-xl text-slate-800">Gestión de Usuarios</h2>
-                    <button onClick={() => setShowCreateModal(true)} className="bg-brand-400 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-brand-200 transition-all">
-                        <Plus size={18} /> Nuevo
-                    </button>
-                </div>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input type="text" placeholder="Buscar por nombre, email..." className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all" />
-                </div>
-                {/* Filter Tabs */}
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                    {['Todos', 'Admin', 'Profesional', 'Coordinador', 'Pacientes'].map((label, idx) => {
-                        const key = ['ALL', 'ADMIN', 'PROF', 'COORD', 'CLIENT'][idx] as any;
-                        return (
-                            <button 
-                                key={key}
-                                onClick={() => setFilter(key)}
-                                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === key ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                            >
-                                {label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* User List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-                {filteredUsers.map(user => {
-                    const roleColor = user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : user.role === 'PROFESSIONAL' ? 'bg-brand-50 text-brand-700' : user.role === 'COORDINATOR' ? 'bg-slate-100 text-slate-700' : 'bg-blue-50 text-blue-600';
-                    const roleLabel = user.role === 'ADMIN' ? 'Administrador' : user.role === 'PROFESSIONAL' ? 'Profesional RFAI' : user.role === 'COORDINATOR' ? 'Coordinador' : 'Cliente';
-                    const isClient = user.role === 'CLIENT';
-                    const client = isClient ? user as ClientProfile : null;
-                    const isAngustia = client?.program === 'ANGUSTIA';
-
-                    return (
-                        <div key={user.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4 group">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                        <img src={user.avatar} className="w-12 h-12 rounded-full object-cover border border-slate-100" alt="" />
-                                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-300'}`}></span>
-                                    </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-800">{user.name}</h3>
-                                        <p className="text-xs text-slate-400">{user.email}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-1">
-                                    <button 
-                                        onClick={() => toggleStatus(user.id)}
-                                        className={`p-2 rounded-full border transition-all ${user.status === 'ACTIVE' ? 'text-green-600 bg-green-50 border-green-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200' : 'text-slate-400 bg-slate-50 border-slate-200 hover:bg-green-50 hover:text-green-600'}`}
-                                        title={user.status === 'ACTIVE' ? 'Desactivar Usuario' : 'Activar Usuario'}
-                                    >
-                                        <Power size={18} />
-                                    </button>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Clock size={18} className="text-slate-400"/> Actividad Reciente</h4>
+                    <div className="space-y-4">
+                        {[1,2,3,4,5].map(i => (
+                            <div key={i} className="flex items-start gap-3 pb-3 border-b border-slate-50 last:border-0 last:pb-0">
+                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs shrink-0">U</div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-700 leading-tight">Nuevo paciente registrado</p>
+                                    <p className="text-xs text-slate-400 mt-1">Hace {i * 2} horas</p>
                                 </div>
                             </div>
-                            
-                            <div className="flex gap-2 flex-wrap">
-                                <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${roleColor}`}>
-                                    {roleLabel}
-                                </span>
-                                {isClient && (
-                                    <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 ${isAngustia ? 'bg-indigo-100 text-indigo-700' : 'bg-brand-50 text-brand-700'}`}>
-                                        {client?.program}
-                                    </span>
-                                )}
-                                <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                                    {user.status === 'ACTIVE' ? 'Activo' : 'Inactivo'}
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-50">
-                                <button onClick={() => setEditingUser(user)} className="bg-slate-900 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors">
-                                    <Edit size={14}/> Editar
-                                </button>
-                                <button onClick={() => deleteUser(user.id)} className="bg-white border border-slate-200 text-slate-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors">
-                                    <Trash2 size={14}/> Eliminar
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Create Modal Simulation */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center sm:p-4">
-                    <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-slate-800">Crear Usuario</h3>
-                            <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
-                                <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="Nombre completo" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
-                                <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" placeholder="usuario@email.com" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rol</label>
-                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm">
-                                    <option value="CLIENT">Paciente (Cliente)</option>
-                                    <option value="PROFESSIONAL">Profesional</option>
-                                    {/* Role Based Access Control for Dropdown */}
-                                    {currentUserRole === 'ADMIN' && <option value="COORDINATOR">Coordinador</option>}
-                                    {currentUserRole === 'ADMIN' && <option value="ADMIN">Administrador</option>}
-                                </select>
-                            </div>
-                            <button onClick={() => setShowCreateModal(false)} className="w-full bg-brand-600 text-white font-bold py-3 rounded-xl mt-2 hover:bg-brand-700">Guardar Usuario</button>
-                        </div>
+                        ))}
                     </div>
                 </div>
-            )}
-
-            {/* Editing Modal */}
-            {editingUser && (
-                <UserEditModal 
-                    user={editingUser} 
-                    onSave={handleUpdateUser} 
-                    onClose={() => setEditingUser(null)} 
-                    currentUserRole={currentUserRole}
-                />
-            )}
+            </div>
         </div>
     );
 };
 
-const AdminView: React.FC<{ currentUser: User; onLogout: () => void }> = ({ currentUser, onLogout }) => {
-    const [activeTab, setActiveTab] = useState<'global' | 'users' | 'content' | 'settings'>('global');
+// ==========================================
+// MAIN DASHBOARD LAYOUT
+// ==========================================
+
+export const AdminDashboard: React.FC<Props> = ({ currentUser, onLogout }) => {
+    const [activeTab, setActiveTab] = useState('global');
+
+    const MenuButton = ({ id, icon: Icon, label, indent = false }: { id: string, icon: any, label?: string, indent?: boolean }) => (
+        <button 
+            onClick={() => setActiveTab(id)} 
+            className={`w-full p-3 rounded-2xl transition-all flex items-center justify-center md:justify-start gap-3 group relative ${activeTab === id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${indent ? 'md:pl-6' : ''}`}
+            title={label}
+        >
+            <Icon size={indent ? 18 : 22} className={indent && activeTab !== id ? 'opacity-70' : ''} />
+            <span className="hidden md:block font-medium text-sm">{label}</span>
+            {/* Tooltip for mobile/collapsed */}
+            <span className="md:hidden absolute left-14 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none whitespace-nowrap">
+                {label}
+            </span>
+        </button>
+    );
 
     return (
         <div className="flex h-screen bg-slate-100 overflow-hidden font-sans text-slate-800">
-             <aside className="hidden md:flex w-20 bg-slate-900 text-white flex-col items-center py-6 gap-8 z-20 shadow-xl">
-                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-900/50">A.</div>
-                <nav className="flex-1 flex flex-col gap-4 w-full px-2">
-                    <button onClick={() => setActiveTab('global')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'global' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Activity size={24} /></button>
-                    <button onClick={() => setActiveTab('users')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Users size={24} /></button>
-                    <button onClick={() => setActiveTab('content')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'content' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Briefcase size={24} /></button>
-                    <button onClick={() => setActiveTab('settings')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Settings size={24} /></button>
+             <aside className="hidden md:flex w-20 md:w-64 bg-slate-900 text-white flex-col items-center md:items-start py-6 gap-8 z-20 shadow-xl transition-all duration-300">
+                <div className="w-full px-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-900/50 shrink-0">A.</div>
+                    <span className="hidden md:block font-bold text-lg tracking-tight">Admin<span className="text-indigo-400">Panel</span></span>
+                </div>
+
+                <nav className="flex-1 flex flex-col gap-2 w-full px-3 overflow-y-auto custom-scrollbar">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-1 mt-2 hidden md:block">Principal</div>
+                    <MenuButton id="global" icon={Activity} label="Panel Global" />
+                    
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-1 mt-4 hidden md:block">Usuarios</div>
+                    
+                    {/* Admin Only: Admins & Coordinators */}
+                    {currentUser.rol.slug === RolSlug.ADMIN && (
+                        <>
+                            <MenuButton id="users-admin" icon={Shield} label="Administradores" />
+                            <MenuButton id="users-coord" icon={UserCheck} label="Coordinadores" />
+                        </>
+                    )}
+
+                    {/* Admin & Coordinator Only: Professionals */}
+                    {(currentUser.rol.slug === RolSlug.ADMIN || currentUser.rol.slug === RolSlug.COORDINATOR) && (
+                        <MenuButton id="users-prof" icon={User} label="Profesionales" />
+                    )}
+
+                    {/* Everyone: Patients */}
+                    <MenuButton id="users-client" icon={Users} label="Pacientes" />
+
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-3 mb-1 mt-4 hidden md:block">Clínica</div>
+                    <MenuButton id="programs" icon={Briefcase} label="Programas" />
+                    <MenuButton id="calendar" icon={Calendar} label="Calendario" />
+                    <MenuButton id="docs" icon={HardDrive} label="Documentos" />
                 </nav>
-                <div className="flex flex-col gap-4">
-                    <button onClick={onLogout} className="w-10 h-10 rounded-full bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-400 flex items-center justify-center transition-colors"><LogOut size={18} /></button>
-                    <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-slate-700" alt="Profile" />
+
+                <div className="w-full px-3">
+                    <button onClick={onLogout} className="w-full p-3 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-slate-800 flex items-center justify-center md:justify-start gap-3 transition-colors">
+                        <LogOut size={20}/>
+                        <span className="hidden md:block font-medium text-sm">Cerrar Sesión</span>
+                    </button>
                 </div>
             </aside>
 
              <main className="flex-1 relative bg-slate-50 overflow-hidden flex flex-col">
-                {activeTab === 'global' && <div className="h-full overflow-y-auto p-4 md:p-8 pb-24"><AdminGlobalPanel /></div>}
-                {activeTab === 'users' && <AdminUserManagement currentUserRole="ADMIN" onSelectUser={(u) => console.log('Selected user:', u)} />}
-                {activeTab === 'content' && <ContentManager />}
-                {activeTab === 'settings' && <AdminSettings />}
+                <div className="h-full overflow-y-auto">
+                    {activeTab === 'global' && <div className="p-4 md:p-8"><AdminGlobalPanel /></div>}
+                    
+                    {/* Vistas de Usuarios por Rol */}
+                    {activeTab === 'users-admin' && <AdminUserManagement roleFilter={RolSlug.ADMIN} title="Administradores" />}
+                    {activeTab === 'users-coord' && <AdminUserManagement roleFilter={RolSlug.COORDINATOR} title="Coordinadores" />}
+                    {activeTab === 'users-prof' && <AdminUserManagement roleFilter={RolSlug.PROFESSIONAL} title="Profesionales" />}
+                    {activeTab === 'users-client' && <AdminUserManagement roleFilter={RolSlug.CLIENT} title="Pacientes" />}
+
+                    {/* Vistas Clínica */}
+                    {activeTab === 'programs' && <AdminProgramManagement />}
+                    {activeTab === 'calendar' && <AdminCalendarView />}
+                    {activeTab === 'docs' && <AdminDocumentManagement />}
+                </div>
              </main>
 
-            {/* Admin Mobile Navigation */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <button onClick={() => setActiveTab('global')} className={`flex flex-col items-center gap-1 ${activeTab === 'global' ? 'text-indigo-600' : 'text-slate-400'}`}><Activity size={20} /><span className="text-[10px] font-bold">Resumen</span></button>
-                <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-1 ${activeTab === 'users' ? 'text-indigo-600' : 'text-slate-400'}`}><Users size={20} /><span className="text-[10px] font-bold">Usuarios</span></button>
-                <button onClick={() => setActiveTab('content')} className={`flex flex-col items-center gap-1 ${activeTab === 'content' ? 'text-indigo-600' : 'text-slate-400'}`}><Briefcase size={20} /><span className="text-[10px] font-bold">Contenido</span></button>
-                <button onClick={onLogout} className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-500"><LogOut size={20} /><span className="text-[10px] font-bold">Salir</span></button>
+            {/* Mobile Bottom Nav */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around p-2 z-50">
+                <button onClick={() => setActiveTab('global')} className={`p-2 rounded-xl ${activeTab === 'global' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}><Activity size={24}/></button>
+                <button onClick={() => setActiveTab('users-client')} className={`p-2 rounded-xl ${activeTab.includes('users') ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}><Users size={24}/></button>
+                <button onClick={() => setActiveTab('calendar')} className={`p-2 rounded-xl ${activeTab === 'calendar' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}><Calendar size={24}/></button>
+                <button onClick={() => setActiveTab('programs')} className={`p-2 rounded-xl ${activeTab === 'programs' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}><Briefcase size={24}/></button>
+                <button onClick={onLogout} className="p-2 text-slate-400"><LogOut size={24}/></button>
             </div>
         </div>
     );
-};
-
-const CoordinatorView: React.FC<{ currentUser: User; onLogout: () => void }> = ({ currentUser, onLogout }) => {
-    // Coordinator can manage users, view progress (clients list), and manage content.
-    // They are like a "Lite Admin" without Server settings, but with Calendar.
-    const [activeTab, setActiveTab] = useState<'clients' | 'calendar' | 'users' | 'content'>('clients');
-    const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(null);
-    const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
-
-    const handleClientSelect = (client: ClientProfile) => {
-        setSelectedClient(client);
-        setIsMobileDetailOpen(true);
-        setActiveTab('clients');
-    };
-
-    return (
-        <div className="flex h-screen bg-slate-100 overflow-hidden font-sans text-slate-800">
-             <aside className="hidden md:flex w-20 bg-slate-900 text-white flex-col items-center py-6 gap-8 z-20 shadow-xl">
-                <div className="w-10 h-10 bg-slate-100 text-slate-800 rounded-xl flex items-center justify-center font-bold shadow-lg">C.</div>
-                <nav className="flex-1 flex flex-col gap-4 w-full px-2">
-                    <button onClick={() => setActiveTab('clients')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'clients' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Activity size={24} /></button>
-                    <button onClick={() => setActiveTab('calendar')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'calendar' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><CalendarIcon size={24} /></button>
-                    <div className="h-px bg-slate-700 w-full my-2"></div>
-                    <button onClick={() => setActiveTab('users')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'users' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Users size={24} /></button>
-                    <button onClick={() => setActiveTab('content')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'content' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Briefcase size={24} /></button>
-                </nav>
-                <div className="flex flex-col gap-4">
-                    <button onClick={onLogout} className="w-10 h-10 rounded-full bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-400 flex items-center justify-center transition-colors"><LogOut size={18} /></button>
-                    <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-slate-700" alt="Profile" />
-                </div>
-            </aside>
-
-            {/* Layout Handling based on Tab */}
-            {activeTab === 'clients' ? (
-                <>
-                    <div className={`hidden md:flex w-80 bg-white border-r border-slate-200 z-10 flex-col shadow-sm`}>
-                        <ProClientsList onSelect={handleClientSelect} selectedId={selectedClient?.id} />
-                    </div>
-                    <main className="flex-1 relative bg-slate-50 overflow-hidden flex flex-col">
-                        <div className="hidden md:block h-full w-full">
-                            {selectedClient ? <ProClientDetail client={selectedClient} /> : <div className="h-full flex items-center justify-center text-slate-400"><p>Selecciona un paciente para ver su avance</p></div>}
-                        </div>
-                        <div className="md:hidden h-full w-full relative">
-                            {isMobileDetailOpen && selectedClient ? (
-                                <div className="absolute inset-0 z-30 bg-white animate-in slide-in-from-right duration-200">
-                                    <ProClientDetail client={selectedClient} onBack={() => setIsMobileDetailOpen(false)} />
-                                </div>
-                            ) : (
-                                <ProClientsList onSelect={handleClientSelect} selectedId={selectedClient?.id} />
-                            )}
-                        </div>
-                    </main>
-                </>
-            ) : (
-                <main className="flex-1 relative bg-slate-50 overflow-hidden flex flex-col">
-                    {activeTab === 'calendar' && <div className="h-full overflow-y-auto pb-20 md:pb-0"><ProCalendarModule onSelectClient={(c) => {setSelectedClient(c); setActiveTab('clients');}} /></div>}
-                    {activeTab === 'users' && <AdminUserManagement currentUserRole="COORDINATOR" onSelectUser={(u) => console.log(u)} />}
-                    {activeTab === 'content' && <ContentManager />}
-                </main>
-            )}
-
-            {/* Coordinator Mobile Nav */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                <button onClick={() => setActiveTab('clients')} className={`flex flex-col items-center gap-1 ${activeTab === 'clients' ? 'text-slate-900' : 'text-slate-400'}`}><Activity size={20} /><span className="text-[10px] font-bold">Pacientes</span></button>
-                <button onClick={() => setActiveTab('calendar')} className={`flex flex-col items-center gap-1 ${activeTab === 'calendar' ? 'text-slate-900' : 'text-slate-400'}`}><CalendarIcon size={20} /><span className="text-[10px] font-bold">Agenda</span></button>
-                <button onClick={() => setActiveTab('users')} className={`flex flex-col items-center gap-1 ${activeTab === 'users' ? 'text-slate-900' : 'text-slate-400'}`}><Users size={20} /><span className="text-[10px] font-bold">Gestión</span></button>
-                <button onClick={() => setActiveTab('content')} className={`flex flex-col items-center gap-1 ${activeTab === 'content' ? 'text-slate-900' : 'text-slate-400'}`}><Briefcase size={20} /><span className="text-[10px] font-bold">Contenido</span></button>
-                <button onClick={onLogout} className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-500"><LogOut size={20} /><span className="text-[10px] font-bold">Salir</span></button>
-            </div>
-        </div>
-    );
-}
-
-export const AdminDashboard: React.FC<Props> = ({ currentUser, onLogout }) => {
-  if (currentUser.role === 'ADMIN') {
-    return <AdminView currentUser={currentUser} onLogout={onLogout} />;
-  }
-  if (currentUser.role === 'COORDINATOR') {
-    return <CoordinatorView currentUser={currentUser} onLogout={onLogout} />;
-  }
-  
-  // Professional View implementation
-  const [selectedClient, setSelectedClient] = useState<ClientProfile | null>(MOCK_CLIENT_W1);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'clients' | 'calendar'>('clients');
-  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
-
-  const handleClientSelect = (client: ClientProfile) => {
-      setSelectedClient(client);
-      setIsMobileDetailOpen(true);
-      setActiveSidebarTab('clients');
-  };
-
-  return (
-      <div className="flex h-screen bg-slate-100 overflow-hidden font-sans text-slate-800">
-           <aside className="hidden md:flex w-20 bg-slate-900 text-white flex-col items-center py-6 gap-8 z-20 shadow-xl">
-              <div className="w-10 h-10 bg-brand-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-brand-900/50">P.</div>
-              <nav className="flex-1 flex flex-col gap-4 w-full px-2">
-                  <button onClick={() => setActiveSidebarTab('clients')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeSidebarTab === 'clients' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><Users size={24} /></button>
-                  <button onClick={() => setActiveSidebarTab('calendar')} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${activeSidebarTab === 'calendar' ? 'bg-brand-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}><CalendarIcon size={24} /></button>
-              </nav>
-              <div className="flex flex-col gap-4">
-                  <button onClick={onLogout} className="w-10 h-10 rounded-full bg-slate-800 hover:bg-red-500/20 hover:text-red-400 text-slate-400 flex items-center justify-center transition-colors"><LogOut size={18} /></button>
-                  <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-slate-700" alt="Profile" />
-              </div>
-           </aside>
-
-           <div className={`hidden md:flex w-80 bg-white border-r border-slate-200 z-10 flex-col shadow-sm transition-all duration-300 ${activeSidebarTab === 'clients' ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 absolute'}`}>
-              <ProClientsList onSelect={handleClientSelect} selectedId={selectedClient?.id} />
-           </div>
-
-           <main className="flex-1 relative bg-slate-50 overflow-hidden flex flex-col">
-              <div className="hidden md:block h-full w-full">
-                  {activeSidebarTab === 'calendar' ? <ProCalendarModule onSelectClient={handleClientSelect} /> : (selectedClient ? <ProClientDetail client={selectedClient} /> : <div className="h-full flex items-center justify-center text-slate-400"><p>Selecciona un paciente</p></div>)}
-              </div>
-
-              <div className="md:hidden h-full w-full relative">
-                  {isMobileDetailOpen && selectedClient && activeSidebarTab === 'clients' && <div className="absolute inset-0 z-30 bg-white animate-in slide-in-from-right duration-200"><ProClientDetail client={selectedClient} onBack={() => setIsMobileDetailOpen(false)} /></div>}
-                  {activeSidebarTab === 'calendar' && <div className="absolute inset-0 z-20 bg-white pb-20"><ProCalendarModule onSelectClient={handleClientSelect} /></div>}
-                  {activeSidebarTab === 'clients' && !isMobileDetailOpen && <div className="absolute inset-0 z-20 bg-white pb-20"><ProClientsList onSelect={handleClientSelect} selectedId={selectedClient?.id} /></div>}
-              </div>
-           </main>
-
-          <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex justify-around items-center z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-              <button onClick={() => { setActiveSidebarTab('clients'); setIsMobileDetailOpen(false); }} className={`flex flex-col items-center gap-1 ${activeSidebarTab === 'clients' ? 'text-brand-600' : 'text-slate-400'}`}><Users size={20} /><span className="text-[10px] font-bold">Pacientes</span></button>
-              <button onClick={() => setActiveSidebarTab('calendar')} className={`flex flex-col items-center gap-1 ${activeSidebarTab === 'calendar' ? 'text-brand-600' : 'text-slate-400'}`}><CalendarIcon size={20} /><span className="text-[10px] font-bold">Agenda</span></button>
-              <button onClick={onLogout} className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-500"><LogOut size={20} /><span className="text-[10px] font-bold">Salir</span></button>
-          </div>
-      </div>
-  );
 };

@@ -1,395 +1,214 @@
-import { ClientProfile, GuideStep, User } from './types';
+import { UsuarioConectado, PacienteConectado, RolSlug, ProgramaNombre, EstadoInscripcion, Recurso, Sesion, TestQuestion, Programa, Calendario, ModalidadCita, EstadisticasPaciente } from './types';
 
-// --- MOCK USERS ---
+// --- ROLES BASE ---
+const ROL_ADMIN = { id: 'r-1', nombre: 'Administrador', slug: RolSlug.ADMIN };
+const ROL_COORD = { id: 'r-2', nombre: 'Coordinador', slug: RolSlug.COORDINATOR };
+const ROL_PROF = { id: 'r-3', nombre: 'Profesional', slug: RolSlug.PROFESSIONAL };
+const ROL_CLIENT = { id: 'r-4', nombre: 'Paciente', slug: RolSlug.CLIENT };
 
-export const MOCK_ADMIN: User = {
-  id: 'u-admin', name: 'Claudio Reyes', email: 'admin@equilibrar.cl', role: 'ADMIN', avatar: 'https://picsum.photos/200/200?random=1', status: 'ACTIVE'
+// --- PROGRAMAS (PRECIOS ACTUALIZADOS) ---
+export const PROG_CULPA: Programa = { id: 'p-1', nombre: ProgramaNombre.CULPA, descripcion: 'Tratamiento focalizado en culpa y responsabilidad excesiva.', precio: 250000, recursosAsignadosIds: [] };
+export const PROG_ANGUSTIA: Programa = { id: 'p-2', nombre: ProgramaNombre.ANGUSTIA, descripcion: 'Tratamiento focalizado en angustia y crisis de pánico.', precio: 250000, recursosAsignadosIds: [] };
+export const PROG_IRRITABILIDAD: Programa = { id: 'p-3', nombre: ProgramaNombre.IRRITABILIDAD, descripcion: 'Tratamiento focalizado en manejo de ira, reactividad y control de impulsos.', precio: 250000, recursosAsignadosIds: [] };
+
+export const ALL_PROGRAMS: Programa[] = [PROG_CULPA, PROG_ANGUSTIA, PROG_IRRITABILIDAD];
+
+// --- SESIONES & RECURSOS (LÓGICA CLÍNICA ACTUALIZADA) ---
+
+// Helper para crear sesiones dinámicas con reglas de negocio:
+// - Audios: 1 para semanas 1-2, 1 para semanas 3-4.
+// - Tests y Guías: Todas las semanas.
+const crearSesionesMock = (progId: string, titulos: string[]): Sesion[] => {
+    return titulos.map((titulo, idx) => {
+        const semana = idx + 1;
+        // Lógica de Audios Bimensuales
+        const audioFase = semana <= 2 ? 1 : 2;
+        const audioTitulo = semana <= 2 ? 'Audio Fase 1: Fundamentos y Calma' : 'Audio Fase 2: Profundización y Hábito';
+        
+        return {
+            id: `s-${progId}-${semana}`,
+            programaId: progId,
+            orden: semana,
+            titulo: titulo,
+            recursos: [
+                { id: `rec-${progId}-audio-fase-${audioFase}`, categoriaId: 'AUDIO', url: '#', titulo: audioTitulo, tipo: 'AUDIO' },
+                { id: `rec-${progId}-${idx}-test`, categoriaId: 'TEST', url: '#', titulo: `Test de Monitoreo Semanal`, tipo: 'TEST' },
+                { id: `rec-${progId}-${idx}-guia`, categoriaId: 'GUIA', url: '#', titulo: `Guía de Trabajo Semana ${semana}`, tipo: 'GUIA' }
+            ]
+        };
+    });
 };
 
-export const MOCK_COORD: User = {
-  id: 'u-coord', name: 'María Coordinadora', email: 'coord@equilibrar.cl', role: 'COORDINATOR', avatar: 'https://picsum.photos/200/200?random=2', status: 'ACTIVE'
-};
+// Contenido específico por programa
+export const CONTENIDO_SESIONES_CULPA = crearSesionesMock(PROG_CULPA.id, [
+    'Comprender la Señal', 'Regulación Emocional', 'Restitución del Vínculo', 'Integración y Cierre'
+]);
 
-export const MOCK_PROF: User = {
-  id: 'u-prof', name: 'Dr. Especialista', email: 'prof@equilibrar.cl', role: 'PROFESSIONAL', avatar: 'https://picsum.photos/200/200?random=3', status: 'ACTIVE'
-};
+export const CONTENIDO_SESIONES_ANGUSTIA = crearSesionesMock(PROG_ANGUSTIA.id, [
+    'Desactivar la Alerta', 'Seguridad Interna', 'Exposición Gradual', 'Confianza Total'
+]);
 
-// --- PROGRAMA CULPA CLIENTS ---
+export const CONTENIDO_SESIONES_IRRITABILIDAD = crearSesionesMock(PROG_IRRITABILIDAD.id, [
+    'Identificar el Detonante', 'Enfriar la Reacción', 'Comunicación Asertiva', 'Paz Mental Sostenible'
+]);
 
-export const MOCK_CLIENT_W1: ClientProfile = {
-  id: 'c-w1', name: 'Lucía Fernández (Sem 1)', email: 'lucia@client.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=4', status: 'ACTIVE',
-  currentWeek: 1, startDate: '2023-10-25', nextSession: '2023-10-28T10:00:00', program: 'CULPA',
-  progress: {
-    week1: { isLocked: false, isCompleted: false, initialTestDone: false, guideCompleted: false, audioListened: 0, meetingAttended: false },
-    week2: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week3: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: { testScores: [], audioUsage: [] }
-};
-
-export const MOCK_CLIENT_W2: ClientProfile = {
-  id: 'c-w2', name: 'Carlos Díaz (Sem 2)', email: 'carlos@client.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=6', status: 'ACTIVE',
-  currentWeek: 2, startDate: '2023-10-18', program: 'CULPA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 6, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week3: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: {
-      testScores: [{ date: '2023-10-18', week: 1, scores: { autojuicio: 24, culpaNoAdaptativa: 20, responsabilidadConsciente: 12, humanizacionError: 5 } }],
-      audioUsage: [{ date: '2023-10-19', minutesListened: 15, audioId: 'audio1' }]
-  }
-};
-
-export const MOCK_CLIENT_W3: ClientProfile = {
-  id: 'c-w3', name: 'Pedro Pascal (Sem 3)', email: 'pedro@client.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=5', status: 'ACTIVE',
-  currentWeek: 3, startDate: '2023-10-01', program: 'CULPA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 5, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 4 },
-    week3: { isLocked: false, isCompleted: false, initialTestDone: false, guideCompleted: false, audioListened: 1 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: {
-    testScores: [
-      { date: '2023-10-01', week: 1, scores: { autojuicio: 25, culpaNoAdaptativa: 22, responsabilidadConsciente: 10, humanizacionError: 3 } },
-      { date: '2023-10-15', week: 2, scores: { autojuicio: 18, culpaNoAdaptativa: 15, responsabilidadConsciente: 18, humanizacionError: 6 } },
-    ],
-    audioUsage: [
-      { date: '2023-10-02', minutesListened: 15, audioId: 'audio1' },
-      { date: '2023-10-03', minutesListened: 15, audioId: 'audio1' },
-      { date: '2023-10-16', minutesListened: 20, audioId: 'audio2' },
-    ]
-  }
-};
-
-export const MOCK_CLIENT_W4: ClientProfile = {
-  id: 'c-w4', name: 'Ana Ruiz (Sem 4)', email: 'ana@client.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=7', status: 'ACTIVE',
-  currentWeek: 4, startDate: '2023-09-20', nextSession: '2023-10-30T16:00:00', program: 'CULPA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 7, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 5 },
-    week3: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 6 },
-    week4: { isLocked: false, isCompleted: false, guideCompleted: false, audioListened: 0, meetingAttended: false },
-  },
-  clinicalData: {
-    testScores: [
-      { date: '2023-09-20', week: 1, scores: { autojuicio: 28, culpaNoAdaptativa: 24, responsabilidadConsciente: 8, humanizacionError: 2 } },
-      { date: '2023-10-04', week: 2, scores: { autojuicio: 20, culpaNoAdaptativa: 18, responsabilidadConsciente: 15, humanizacionError: 5 } },
-      { date: '2023-10-18', week: 3, scores: { autojuicio: 14, culpaNoAdaptativa: 10, responsabilidadConsciente: 22, humanizacionError: 8 } },
-    ],
-    audioUsage: []
-  }
-};
-
-// --- PROGRAMA ANGUSTIA CLIENTS (NEW) ---
-
-export const MOCK_CLIENT_ANG_W1: ClientProfile = {
-  id: 'c-a1', name: 'Paula Angustia (Sem 1)', email: 'paula@angustia.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=10', status: 'ACTIVE',
-  currentWeek: 1, startDate: '2023-11-01', nextSession: '2023-11-05T18:00:00', program: 'ANGUSTIA',
-  progress: {
-    week1: { isLocked: false, isCompleted: false, initialTestDone: false, guideCompleted: false, audioListened: 0, meetingAttended: false },
-    week2: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week3: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: { testScores: [], audioUsage: [] }
-};
-
-export const MOCK_CLIENT_ANG_W2: ClientProfile = {
-  id: 'c-a2', name: 'Jorge Angustia (Sem 2)', email: 'jorge@angustia.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=11', status: 'ACTIVE',
-  currentWeek: 2, startDate: '2023-10-25', program: 'ANGUSTIA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 5, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week3: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: {
-    testScores: [{ date: '2023-10-25', week: 1, scores: { angustiaAnticipatoria: 18, autoculpabilizacionAngustia: 22, desconexionAmorPropio: 14, regulacionAmor: 6 } }],
-    audioUsage: []
-  }
-};
-
-export const MOCK_CLIENT_ANG_W3: ClientProfile = {
-  id: 'c-a3', name: 'Sofía Angustia (Sem 3)', email: 'sofia@angustia.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=12', status: 'ACTIVE',
-  currentWeek: 3, startDate: '2023-10-18', program: 'ANGUSTIA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 6, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 5 },
-    week3: { isLocked: false, isCompleted: false, guideCompleted: false, audioListened: 0 },
-    week4: { isLocked: true, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: {
-    testScores: [
-      { date: '2023-10-18', week: 1, scores: { angustiaAnticipatoria: 19, autoculpabilizacionAngustia: 24, desconexionAmorPropio: 15, regulacionAmor: 5 } },
-      { date: '2023-10-25', week: 2, scores: { angustiaAnticipatoria: 14, autoculpabilizacionAngustia: 18, desconexionAmorPropio: 12, regulacionAmor: 10 } }
-    ],
-    audioUsage: []
-  }
-};
-
-export const MOCK_CLIENT_ANG_W4: ClientProfile = {
-  id: 'c-a4', name: 'Miguel Angustia (Sem 4)', email: 'miguel@angustia.com', role: 'CLIENT', avatar: 'https://picsum.photos/200/200?random=13', status: 'ACTIVE',
-  currentWeek: 4, startDate: '2023-10-11', program: 'ANGUSTIA',
-  progress: {
-    week1: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 8, meetingAttended: true },
-    week2: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 6 },
-    week3: { isLocked: false, isCompleted: true, initialTestDone: true, guideCompleted: true, audioListened: 7 },
-    week4: { isLocked: false, isCompleted: false, guideCompleted: false, audioListened: 0 },
-  },
-  clinicalData: {
-    testScores: [
-      { date: '2023-10-11', week: 1, scores: { angustiaAnticipatoria: 16, autoculpabilizacionAngustia: 20, desconexionAmorPropio: 13, regulacionAmor: 7 } },
-      { date: '2023-10-25', week: 3, scores: { angustiaAnticipatoria: 8, autoculpabilizacionAngustia: 10, desconexionAmorPropio: 6, regulacionAmor: 18 } }
-    ],
-    audioUsage: []
-  }
-};
-
-export const ALL_USERS = [
-    MOCK_ADMIN, MOCK_COORD, MOCK_PROF, 
-    MOCK_CLIENT_W1, MOCK_CLIENT_W2, MOCK_CLIENT_W3, MOCK_CLIENT_W4,
-    MOCK_CLIENT_ANG_W1, MOCK_CLIENT_ANG_W2, MOCK_CLIENT_ANG_W3, MOCK_CLIENT_ANG_W4
+// Extract all resources for Admin Dashboard
+export const ALL_RESOURCES: Recurso[] = [
+    ...CONTENIDO_SESIONES_CULPA.flatMap(s => s.recursos || []),
+    ...CONTENIDO_SESIONES_ANGUSTIA.flatMap(s => s.recursos || []),
+    ...CONTENIDO_SESIONES_IRRITABILIDAD.flatMap(s => s.recursos || [])
 ];
 
-// --- CONTENT DATA (CULPA) ---
+// --- USUARIOS STAFF ---
 
-export const WEEKLY_CONTENT_CULPA = {
-  1: {
-    title: "Comprender la culpa",
-    subtitle: "Sin juzgarla",
-    description: "Diferenciar la culpa como señal de la culpa como castigo interno.",
-    audioTitle: "Audio 1: Desactivar la Alerta",
-    hasMeet: true,
-  },
-  2: {
-    title: "Regular la culpa no adaptativa",
-    subtitle: "Reducir el autoataque",
-    description: "Reducir el autoataque y permitir la regulación del sistema nervioso.",
-    audioTitle: "Audio 1: Desactivar la Alerta (Refuerzo)",
-    hasMeet: false,
-  },
-  3: {
-    title: "Separar identidad de experiencia",
-    subtitle: "Diferenciación",
-    description: "Diferenciar lo que ocurrió de quién soy. Reorganizar la respuesta.",
-    audioTitle: "Audio 2: Reorganizar la Respuesta",
-    hasMeet: false,
-  },
-  4: {
-    title: "Diálogo interno saludable",
-    subtitle: "Consolidación",
-    description: "Consolidar una relación interna basada en responsabilidad consciente.",
-    audioTitle: "Audio 2: Reorganizar la Respuesta (Consolidación)",
-    hasMeet: true,
-  }
+export const MOCK_ADMIN: UsuarioConectado = {
+  id: 'u-admin', email: 'admin@equilibrar.cl', password: '123', rolId: ROL_ADMIN.id, estaActivo: true,
+  rol: ROL_ADMIN,
+  perfil: { id: 'pf-admin', usuarioId: 'u-admin', nombre: 'Benito Olmos', telefono: '+56900000000' },
+  avatarPlaceholder: 'BO'
 };
 
-// --- CONTENT DATA (ANGUSTIA - NEW FROM PDF) ---
-
-export const WEEKLY_CONTENT_ANGUSTIA = {
-  1: {
-    title: "Comprender la angustia",
-    subtitle: "Señal de miedo a la pérdida",
-    description: "Reconocer la angustia como una señal de miedo a la pérdida y no como una falla personal. Objetivo: Validar la experiencia.",
-    audioTitle: "Audio: Validación de la Angustia",
-    hasMeet: true,
-  },
-  2: {
-    title: "Regular desde la seguridad",
-    subtitle: "Disminuir la amenaza",
-    description: "Disminuir la activación del sistema de amenaza y reducir la autoculpabilización. Acompañarse en lugar de controlarse.",
-    audioTitle: "Audio: Seguridad Interna",
-    hasMeet: false,
-  },
-  3: {
-    title: "Recuperar el amor propio",
-    subtitle: "Restituir el vínculo",
-    description: "Restituir el vínculo interno que suele romperse cuando aparece la angustia. Escuchar a la parte que se siente sola.",
-    audioTitle: "Audio: Diálogo con el Niño Interno",
-    hasMeet: false,
-  },
-  4: {
-    title: "Integrar desde el amor",
-    subtitle: "Consolidación",
-    description: "Consolidar una forma de relación interna más segura y compasiva. Transformar el miedo a la pérdida en presencia.",
-    audioTitle: "Audio: Integración Final",
-    hasMeet: true,
-  }
+export const MOCK_COORD: UsuarioConectado = {
+  id: 'u-coord', email: 'coord@equilibrar.cl', password: '123', rolId: ROL_COORD.id, estaActivo: true,
+  rol: ROL_COORD,
+  perfil: { id: 'pf-coord', usuarioId: 'u-coord', nombre: 'Sol Elgueta' },
+  avatarPlaceholder: 'SE'
 };
 
-// --- GUIDES (CULPA) ---
-
-export const GUIDES_CULPA: Record<number, GuideStep[]> = {
-  1: [
-    {
-      title: "Exploración Inicial",
-      description: "Observa tu experiencia sin intentar cambiarla todavía.",
-      questions: [
-        { id: 'w1-q1', text: "¿En qué situaciones aparece con más fuerza la culpa?", type: 'text' },
-        { id: 'w1-q2', text: "¿Qué frases internas la acompañan?", type: 'text' },
-      ]
-    },
-    {
-      title: "Observación Corporal",
-      description: "Conecta con la sensación física.",
-      questions: [
-        { id: 'w1-q3', text: "¿Dónde la siento en el cuerpo?", type: 'text' },
-        { id: 'w1-q4', text: "¿Qué cambia en mi respiración o tensión corporal?", type: 'text' },
-      ]
-    }
-  ],
-  2: [
-    {
-      title: "Exploración de Miedos",
-      description: "Entendiendo la función protectora del castigo.",
-      questions: [
-        { id: 'w2-q1', text: "¿Qué temo que ocurra si no me castigo?", type: 'text' },
-        { id: 'w2-q2', text: "¿Qué pasaría si fuera más amable conmigo?", type: 'text' },
-      ]
-    },
-    {
-      title: "Post-Audio",
-      description: "Reflexión después de la práctica auditiva.",
-      questions: [
-        { id: 'w2-q3', text: "¿Baja la intensidad de la culpa después de escuchar?", type: 'scale' },
-      ]
-    }
-  ],
-  3: [
-    {
-      title: "Identidad vs Experiencia",
-      description: "Separando el ser del hacer.",
-      questions: [
-        { id: 'w3-q1', text: "¿Qué me digo cuando me equivoco?", type: 'text' },
-        { id: 'w3-q2', text: "¿Le diría esto a alguien que quiero?", type: 'choice' },
-      ]
-    }
-  ],
-  4: [
-    {
-      title: "Integración Final",
-      description: "Hacia una responsabilidad consciente.",
-      questions: [
-        { id: 'w4-q1', text: "¿Qué entiendo hoy por culpa que antes no veía?", type: 'text' },
-        { id: 'w4-q2', text: "Puedo hacerme responsable de ______ sin dañarme.", type: 'text' },
-      ]
-    }
-  ]
+export const MOCK_PROF: UsuarioConectado = {
+  id: 'u-prof', email: 'prof@equilibrar.cl', password: '123', rolId: ROL_PROF.id, estaActivo: true,
+  rol: ROL_PROF,
+  programasIds: [PROG_CULPA.id, PROG_ANGUSTIA.id, PROG_IRRITABILIDAD.id], // Claudio hace los 3 programas
+  perfil: { id: 'pf-prof', usuarioId: 'u-prof', nombre: 'Claudio Reyes' },
+  avatarPlaceholder: 'CR'
 };
 
-// --- GUIDES (ANGUSTIA - NEW FROM PDF) ---
+// --- HELPER DATES FOR WEEKS ---
+const today = new Date();
+const week1Date = today.toISOString();
+const week2Date = new Date(today.getTime() - (8 * 24 * 60 * 60 * 1000)).toISOString(); // 8 days ago
+const week3Date = new Date(today.getTime() - (15 * 24 * 60 * 60 * 1000)).toISOString(); // 15 days ago
+const week4Date = new Date(today.getTime() - (23 * 24 * 60 * 60 * 1000)).toISOString(); // 23 days ago
 
-export const GUIDES_ANGUSTIA: Record<number, GuideStep[]> = {
-  1: [
-    {
-      title: "Exploración de la Angustia",
-      description: "Reconociendo la señal sin juicio.",
-      questions: [
-        { id: 'aw1-q1', text: "¿En qué momentos aparece con más fuerza la angustia?", type: 'text' },
-        { id: 'aw1-q2', text: "¿Qué siento que podría perder cuando surge?", type: 'text' },
-        { id: 'aw1-q3', text: "¿Qué pensamientos acompañan esa sensación?", type: 'text' },
-        { id: 'aw1-q4', text: "¿Desde cuándo reconozco este tipo de angustia en mi vida?", type: 'text' },
-      ]
-    },
-    {
-      title: "Observación Corporal",
-      description: "Manifestación física.",
-      questions: [
-        { id: 'aw1-q5', text: "¿Dónde se manifiesta la angustia en mi cuerpo?", type: 'text' },
-        { id: 'aw1-q6', text: "¿Qué ocurre con mi respiración y tensión muscular?", type: 'text' },
-      ]
+// --- GENERADORES DE ESTADÍSTICAS MOCK ---
+const generarEstadisticas = (semanasAvance: number): EstadisticasPaciente => {
+    const minutosBase = 45;
+    const historialTests = [];
+    const historialSesiones = [];
+    
+    // Generar datos históricos
+    for (let i = 1; i <= semanasAvance; i++) {
+        // Score mejora con el tiempo (simulación clínica positiva)
+        const score = Math.max(20, 80 - (i * 10) + Math.floor(Math.random() * 10)); 
+        historialTests.push({ semana: `S${i}`, puntaje: score });
+        
+        historialSesiones.push({
+            fecha: new Date(today.getTime() - ((semanasAvance - i) * 7 * 24 * 60 * 60 * 1000)).toLocaleDateString('es-CL'),
+            titulo: `Sesión Clínica Sem ${i}`,
+            asistencia: 'Asistió'
+        });
     }
-  ],
-  2: [
-    {
-      title: "Diálogo Interno",
-      description: "Explorando la autoconversación.",
-      questions: [
-        { id: 'aw2-q1', text: "¿Qué me digo a mí mismo/a cuando siento angustia?", type: 'text' },
-        { id: 'aw2-q2', text: "¿Me culpo por sentirla?", type: 'choice' },
-        { id: 'aw2-q3', text: "¿Qué cambia cuando intento acompañarme en lugar de controlarme?", type: 'text' },
-      ]
-    },
-    {
-      title: "Regulación",
-      description: "Después de escuchar el audio terapéutico.",
-      questions: [
-        { id: 'aw2-q4', text: "¿Se modifica la intensidad de la angustia?", type: 'scale' },
-        { id: 'aw2-q5', text: "¿Aparece alivio, cansancio, tristeza o calma?", type: 'text' },
-      ]
-    }
-  ],
-  3: [
-    {
-      title: "Vínculo Interno",
-      description: "Restituyendo la relación contigo mismo.",
-      questions: [
-        { id: 'aw3-q1', text: "¿Qué parte de mí se siente sola o abandonada cuando estoy angustiado/a?", type: 'text' },
-        { id: 'aw3-q2', text: "¿Cómo suelo tratarme internamente en esos momentos?", type: 'text' },
-        { id: 'aw3-q3', text: "¿Qué necesitaría escuchar de mí para sentirme acompañado/a?", type: 'text' },
-      ]
-    },
-    {
-      title: "Ejercicio de Diálogo",
-      description: "Completa las frases.",
-      questions: [
-        { id: 'aw3-q4', text: "Cuando siento angustia, una parte de mí teme que...", type: 'text' },
-        { id: 'aw3-q5', text: "Esa parte necesita...", type: 'text' },
-        { id: 'aw3-q6', text: "Puedo ofrecerme...", type: 'text' },
-      ]
-    }
-  ],
-  4: [
-    {
-      title: "Integración desde el Amor",
-      description: "Consolidando el proceso.",
-      questions: [
-        { id: 'aw4-q1', text: "¿Qué aprendí sobre mi angustia durante este proceso?", type: 'text' },
-        { id: 'aw4-q2', text: "¿Qué señales indican que estoy entrando en miedo?", type: 'text' },
-        { id: 'aw4-q3', text: "¿Qué recursos puedo activar para sostenerme?", type: 'text' },
-      ]
-    },
-    {
-      title: "Cierre",
-      description: "Afirmación final.",
-      questions: [
-        { id: 'aw4-q4', text: "Puedo sentir angustia sin abandonarme (Reflexión)", type: 'text' },
-      ]
-    }
-  ]
+
+    return {
+        minutosAudioTotal: minutosBase * weeksToDays(semanasAvance),
+        diaMasFrecuenteAudio: ['Lunes', 'Miércoles', 'Domingo', 'Jueves'][Math.floor(Math.random() * 4)],
+        avanceSemanal: semanasAvance,
+        historialTests,
+        historialSesiones
+    };
 };
 
+function weeksToDays(weeks: number) { return weeks * 3; } // Approx days listened
 
-// --- TEST QUESTIONS ---
+// --- PACIENTES (NOMBRES COMPLETOS Y DIRECCIONES) ---
 
-export const TEST_QUESTIONS_CULPA = [
-  { id: 1, text: "Cuando cometo un error, siento que soy una mala persona.", category: 'Autojuicio' },
-  { id: 2, text: "Siento culpa incluso cuando no he hecho nada malo objetivamente.", category: 'Culpa no adaptativa' },
-  { id: 3, text: "Puedo reconocer mis errores y buscar formas de repararlos.", category: 'Responsabilidad consciente' },
-  { id: 4, text: "Me critico duramente por cosas que ocurrieron hace mucho tiempo.", category: 'Autojuicio' },
-  { id: 6, text: "Entiendo que equivocarme es parte de ser humano.", category: 'Humanización' },
-  { id: 19, text: "Siento que merezco castigo cuando las cosas salen mal.", category: 'Autojuicio' },
-  { id: 20, text: "Asumo las consecuencias de mis actos sin atacarme.", category: 'Responsabilidad consciente' },
+const crearPaciente = (id: string, nombre: string, email: string, prog: Programa, fechaInicio: string, isapre: string, seguro: string, semanas: number, direccion: string): PacienteConectado => ({
+    id, email, password: '123', rolId: ROL_CLIENT.id, estaActivo: true,
+    rol: ROL_CLIENT,
+    perfil: { 
+        id: `pf-${id}`, usuarioId: id, nombre, telefono: '+56912345678',
+        isapre, seguroComplementario: seguro, direccion: direccion
+    },
+    avatarPlaceholder: nombre.charAt(0) + (nombre.split(' ')[1]?.charAt(0) || ''),
+    inscripciones: [{
+        id: `ins-${id}`, pacienteId: id, programaId: prog.id, fechaInicio, estado: EstadoInscripcion.ACTIVO,
+        programa: prog,
+        progreso: [] 
+    }],
+    inscripcionActiva: {
+        id: `ins-${id}`, pacienteId: id, programaId: prog.id, fechaInicio, estado: EstadoInscripcion.ACTIVO,
+        programa: prog
+    },
+    estadisticas: generarEstadisticas(semanas)
+});
+
+// Patients defined in Login Screen (Updated with Addresses)
+export const ALL_USERS: UsuarioConectado[] = [
+    MOCK_ADMIN, MOCK_COORD, MOCK_PROF,
+    // Programa Culpa
+    crearPaciente('c-1', 'Lucía Fernández Soto', 'lucia@client.com', PROG_CULPA, week1Date, 'Colmena', 'MetLife', 1, 'Av. Providencia 1234, Santiago'),
+    crearPaciente('c-2', 'Carlos Díaz Muñoz', 'carlos@client.com', PROG_CULPA, week2Date, 'Cruz Blanca', 'Sin Seguro', 2, 'Calle Falsa 123, Ñuñoa'),
+    crearPaciente('c-3', 'Pedro Pascal Olivo', 'pedro@client.com', PROG_CULPA, week3Date, 'Fonasa', 'BCI Seguros', 3, 'Los Leones 45, Providencia'),
+    crearPaciente('c-4', 'Ana Ruiz Tagle', 'ana@client.com', PROG_CULPA, week4Date, 'Banmédica', 'Zurich', 4, 'El Bosque 555, Las Condes'),
+    // Programa Angustia
+    crearPaciente('c-a1', 'Paula Angustia Vera', 'paula@angustia.com', PROG_ANGUSTIA, week1Date, 'Consalud', 'Sin Seguro', 1, 'Alameda 333, Santiago'),
+    crearPaciente('c-a2', 'Jorge Angustia Lagos', 'jorge@angustia.com', PROG_ANGUSTIA, week2Date, 'Fonasa', 'Chilena Consolidada', 2, 'Irarrázaval 500, Ñuñoa'),
+    crearPaciente('c-a3', 'Camila Angustia Perez', 'camila@angustia.com', PROG_ANGUSTIA, week3Date, 'Colmena', 'MetLife', 3, 'Vitacura 9000, Vitacura'),
+    crearPaciente('c-a4', 'Luis Angustia Molina', 'luis@angustia.com', PROG_ANGUSTIA, week4Date, 'Cruz Blanca', 'Sin Seguro', 4, 'Pajaritos 22, Maipú'),
+    // Programa Irritabilidad
+    crearPaciente('c-i1', 'Ignacio Ira Varas', 'ignacio@ira.com', PROG_IRRITABILIDAD, week1Date, 'Banmédica', 'Confuturo', 1, 'Tobalaba 100, Providencia'),
+    crearPaciente('c-i2', 'Isabel Ira Silva', 'isabel@ira.com', PROG_IRRITABILIDAD, week2Date, 'Fonasa', 'Sin Seguro', 2, 'Gran Avenida 40, San Miguel'),
+    crearPaciente('c-i3', 'Iván Ira Castro', 'ivan@ira.com', PROG_IRRITABILIDAD, week3Date, 'Consalud', 'Sura', 3, 'Vicuña Mackenna 10, Santiago'),
+    crearPaciente('c-i4', 'Irene Ira Rojas', 'irene@ira.com', PROG_IRRITABILIDAD, week4Date, 'Nueva Masvida', 'MetLife', 4, 'Apoquindo 3000, Las Condes'),
 ];
 
-export const TEST_QUESTIONS_ANGUSTIA = [
-  { id: 1, text: "Vivo con una sensación constante de que algo importante podría perderse.", category: 'Angustia anticipatoria' },
-  { id: 2, text: "Cuando siento angustia, pienso que algo anda mal conmigo.", category: 'Autoculpabilización' },
-  { id: 3, text: "Puedo sentir angustia sin perder completamente la calma.", category: 'Regulación desde el amor' },
-  { id: 4, text: "La incertidumbre del futuro me genera mucha tensión.", category: 'Angustia anticipatoria' },
-  { id: 5, text: "Me culpo por no ser capaz de controlar mi angustia.", category: 'Autoculpabilización' },
-  { id: 6, text: "Cuando estoy angustiado/a, me trato con dureza.", category: 'Autoculpabilización' },
-  { id: 7, text: "Puedo acompañarme internamente cuando aparece la angustia.", category: 'Regulación desde el amor' },
-  { id: 8, text: "Siento que la angustia me deja solo/a por dentro.", category: 'Desconexión del amor propio' },
-  { id: 9, text: "La angustia interfiere con mi capacidad de disfrutar el presente.", category: 'Angustia anticipatoria' },
-  { id: 10, text: "Puedo recordarme que sentir angustia es una experiencia humana.", category: 'Regulación desde el amor' },
-  { id: 11, text: "Temo perder el amor o el valor personal cuando me siento angustiado/a.", category: 'Angustia anticipatoria' },
-  { id: 12, text: "Me resulta difícil ser amable conmigo cuando estoy angustiado/a.", category: 'Desconexión/Autoculpabilización' },
-  { id: 13, text: "Puedo sostener la angustia sin entrar en pánico.", category: 'Regulación desde el amor' },
-  { id: 14, text: "Cuando aparece la angustia, siento que debo exigirme más.", category: 'Autoculpabilización' },
-  { id: 15, text: "Logro regular la angustia conectando con el cuidado hacia mí.", category: 'Regulación desde el amor' },
+// --- HELPER PARA TESTS Y GUIAS ---
+
+export const TEST_QUESTIONS_CULPA: TestQuestion[] = [
+    { id: 1, text: 'Me siento responsable de cosas que no controlo', category: 'Responsabilidad Excesiva' },
+    { id: 2, text: 'Me cuesta perdonarme mis errores pasados', category: 'Autocompasión' },
+    { id: 3, text: 'Siento que decepciono a los demás', category: 'Expectativas' },
+    { id: 4, text: 'Pienso mucho en lo que "debería" haber hecho', category: 'Rumia' },
+    { id: 5, text: 'Creo que merezco castigo cuando fallo', category: 'Autocastigo' }
+];
+
+export const TEST_QUESTIONS_ANGUSTIA: TestQuestion[] = [
+    { id: 1, text: 'Siento opresión en el pecho o dificultad para respirar', category: 'Somatización' },
+    { id: 2, text: 'Tengo miedo constante de que algo malo suceda', category: 'Anticipación Catastrófica' },
+    { id: 3, text: 'Me cuesta relajarme o estar quieto', category: 'Agitación' },
+    { id: 4, text: 'Siento inseguridad al enfrentar situaciones nuevas', category: 'Seguridad' },
+    { id: 5, text: 'Duermo mal pensando en mis problemas', category: 'Sueño' }
+];
+
+export const TEST_QUESTIONS_IRRITABILIDAD: TestQuestion[] = [
+    { id: 1, text: 'Reacciono con rabia ante situaciones pequeñas', category: 'Reactividad' },
+    { id: 2, text: 'Siento que los demás hacen cosas para molestarme', category: 'Percepción Hostil' },
+    { id: 3, text: 'Me cuesta calmarme una vez que me he enojado', category: 'Regulación' },
+    { id: 4, text: 'He dicho cosas hirientes de las que luego me arrepiento', category: 'Impulsividad' },
+    { id: 5, text: 'Siento tensión física (mandíbula, puños) frecuentemente', category: 'Somatización' }
+];
+
+// --- CALENDARIO MOCK (LÓGICA ACTUALIZADA) ---
+// Claudio Reyes atiende:
+// Semana 1: Después de test inicial y guía (Inicio tratamiento)
+// Semana 4: Antes de test final y guía (Cierre tratamiento)
+// Las semanas intermedias (2 y 3) son de auto-trabajo.
+
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(10, 0, 0);
+const dayAfter = new Date(); dayAfter.setDate(dayAfter.getDate() + 2); dayAfter.setHours(15, 30, 0);
+const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate() + 5); nextWeek.setHours(11, 0, 0);
+
+const GOOGLE_MEET_LINK = "https://meet.google.com/abc-defg-hij";
+
+export const MOCK_APPOINTMENTS: Calendario[] = [
+    // Pacientes en Semana 1 (Tienen cita de inicio)
+    { id: 'cal-1', profesionalId: 'u-prof', pacienteId: 'c-1', fechaHora: tomorrow.toISOString(), modalidad: ModalidadCita.ONLINE, linkReunion: GOOGLE_MEET_LINK }, // Lucía (S1)
+    { id: 'cal-2', profesionalId: 'u-prof', pacienteId: 'c-a1', fechaHora: dayAfter.toISOString(), modalidad: ModalidadCita.PRESENCIAL }, // Paula (S1)
+    { id: 'cal-3', profesionalId: 'u-prof', pacienteId: 'c-i1', fechaHora: nextWeek.toISOString(), modalidad: ModalidadCita.ONLINE, linkReunion: GOOGLE_MEET_LINK }, // Ignacio (S1)
+
+    // Pacientes en Semana 4 (Tienen cita de cierre)
+    { id: 'cal-4', profesionalId: 'u-prof', pacienteId: 'c-4', fechaHora: tomorrow.toISOString(), modalidad: ModalidadCita.ONLINE, linkReunion: GOOGLE_MEET_LINK }, // Ana (S4)
+    { id: 'cal-5', profesionalId: 'u-prof', pacienteId: 'c-a4', fechaHora: dayAfter.toISOString(), modalidad: ModalidadCita.PRESENCIAL }, // Luis (S4)
+    
+    // NOTA: Pacientes de Semana 2 y 3 no tienen citas agendadas por protocolo.
 ];

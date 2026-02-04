@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { User, ClientProfile } from './types';
+import { UsuarioConectado, PacienteConectado, RolSlug } from './types';
 import { ALL_USERS } from './constants';
 import { ClientDashboard } from './components/ClientDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Eye, EyeOff, ArrowRight, HelpCircle, Moon } from 'lucide-react';
 import { BrandLogo } from './components/BrandLogo';
 
-const LoginPage: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
+const LoginPage: React.FC<{ onLogin: (u: UsuarioConectado) => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,9 +14,11 @@ const LoginPage: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    // Simulación de autenticación contra "Backend"
     const user = ALL_USERS.find(u => u.email === email);
     if (user) {
-      onLogin(user);
+        // En un caso real, aquí validaríamos password hash
+        onLogin(user);
     } else {
       setError('Credenciales inválidas.');
     }
@@ -88,45 +90,36 @@ const LoginPage: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
 
         {/* Demo Section */}
         <div className="mt-12 w-full pt-8 border-t border-slate-50">
-            <p className="text-center text-[10px] text-slate-400 mb-6 uppercase font-bold tracking-widest">Accesos Demo - Programa Culpa</p>
-            
-            <div className="grid grid-cols-4 gap-2 mb-6">
-                <button onClick={() => handleDemoLogin('lucia@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">
-                    S1
-                </button>
-                <button onClick={() => handleDemoLogin('carlos@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">
-                    S2
-                </button>
-                <button onClick={() => handleDemoLogin('pedro@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">
-                    S3
-                </button>
-                 <button onClick={() => handleDemoLogin('ana@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">
-                    S4
-                </button>
+            <p className="text-center text-[10px] text-slate-400 mb-2 uppercase font-bold tracking-widest">Demo - Programa Culpa</p>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+                <button onClick={() => handleDemoLogin('lucia@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">S1</button>
+                <button onClick={() => handleDemoLogin('carlos@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">S2</button>
+                <button onClick={() => handleDemoLogin('pedro@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">S3</button>
+                <button onClick={() => handleDemoLogin('ana@client.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-brand-500 hover:text-brand-600 hover:bg-brand-50 transition-all">S4</button>
             </div>
 
-            <p className="text-center text-[10px] text-indigo-400 mb-6 uppercase font-bold tracking-widest">Accesos Demo - Programa Angustia</p>
+            <p className="text-center text-[10px] text-indigo-400 mb-2 uppercase font-bold tracking-widest">Demo - Programa Angustia</p>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+                <button onClick={() => handleDemoLogin('paula@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">S1</button>
+                <button onClick={() => handleDemoLogin('jorge@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">S2</button>
+                <button onClick={() => handleDemoLogin('camila@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">S3</button>
+                <button onClick={() => handleDemoLogin('luis@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">S4</button>
+            </div>
+
+            <p className="text-center text-[10px] text-orange-400 mb-2 uppercase font-bold tracking-widest">Demo - Programa Irritabilidad</p>
             <div className="grid grid-cols-4 gap-2 mb-6">
-                <button onClick={() => handleDemoLogin('paula@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
-                    S1
-                </button>
-                <button onClick={() => handleDemoLogin('jorge@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
-                    S2
-                </button>
-                <button onClick={() => handleDemoLogin('sofia@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
-                    S3
-                </button>
-                 <button onClick={() => handleDemoLogin('miguel@angustia.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
-                    S4
-                </button>
+                <button onClick={() => handleDemoLogin('ignacio@ira.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-all">S1</button>
+                <button onClick={() => handleDemoLogin('isabel@ira.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-all">S2</button>
+                <button onClick={() => handleDemoLogin('ivan@ira.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-all">S3</button>
+                <button onClick={() => handleDemoLogin('irene@ira.com')} className="py-2 rounded-lg border border-slate-100 text-[10px] font-bold text-slate-600 hover:border-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-all">S4</button>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
                 <button onClick={() => handleDemoLogin('coord@equilibrar.cl')} className="py-3 px-2 rounded-xl bg-slate-50 text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-all uppercase tracking-wide">
-                    Coordinador
+                    Coord
                 </button>
                  <button onClick={() => handleDemoLogin('prof@equilibrar.cl')} className="py-3 px-2 rounded-xl bg-slate-50 text-[10px] font-bold text-slate-600 hover:bg-slate-100 transition-all uppercase tracking-wide">
-                    Profesional
+                    Prof
                 </button>
                 <button onClick={() => handleDemoLogin('admin@equilibrar.cl')} className="py-3 px-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold hover:bg-slate-800 transition-all uppercase tracking-wide">
                     Admin
@@ -137,14 +130,6 @@ const LoginPage: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
         {/* Footer */}
         <div className="mt-12 mb-4 text-center">
              <p className="text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em] mb-4">Centro Clínico Equilibrar © 2024</p>
-             <div className="flex justify-center gap-4">
-                <button className="w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 hover:text-brand-500 hover:border-brand-200 transition-all">
-                    <Moon size={14} />
-                </button>
-                <button className="w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 hover:text-brand-500 hover:border-brand-200 transition-all">
-                    <HelpCircle size={14} />
-                </button>
-             </div>
         </div>
 
       </div>
@@ -153,7 +138,7 @@ const LoginPage: React.FC<{ onLogin: (u: User) => void }> = ({ onLogin }) => {
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<UsuarioConectado | null>(null);
 
   const handleLogout = () => {
     setCurrentUser(null);
@@ -163,10 +148,12 @@ export default function App() {
     return <LoginPage onLogin={setCurrentUser} />;
   }
 
-  if (currentUser.role === 'CLIENT') {
-    return <ClientDashboard user={currentUser as ClientProfile} onLogout={handleLogout} />;
+  // Comprobación de rol usando el slug del objeto Rol
+  if (currentUser.rol.slug === RolSlug.CLIENT) {
+    // Casting seguro porque sabemos que si es CLIENT tiene inscripciones (en nuestra lógica de negocio)
+    return <ClientDashboard user={currentUser as PacienteConectado} onLogout={handleLogout} />;
   }
 
-  // Coordinator, Admin, Professional share the dashboard layout but permissions differ inside
+  // Vistas administrativas
   return <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />;
 }

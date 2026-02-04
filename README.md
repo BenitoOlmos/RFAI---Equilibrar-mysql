@@ -11,25 +11,47 @@ Plataforma web progresiva (PWA) para la gestión del programa clínico "Reprogra
 - **Visualización de Datos:** Recharts
 - **Iconografía:** Lucide React
 
-### Backend (Objetivo)
-- **Infraestructura:** Google Cloud Platform (GCP)
-- **Base de Datos:** MySQL (Cloud SQL)
-- **Gestión de Servidor:** MobaXterm (Acceso SSH/SFTP)
+### Backend (Dockerizado)
+- **Base de Datos:** PostgreSQL 16 (Alpine)
+- **Driver:** `pg` (node-postgres)
+- **Identidad:** UUID v4 nativo
 
 ## 📂 Estructura del Proyecto
 
 ```
 /
 ├── components/         # Componentes React (Dashboards, Modales, UI)
-├── database/           # Scripts SQL para inicialización de BD
-│   └── schema.sql      # Estructura completa de tablas
-├── docs/               # Documentación de arquitectura
-│   └── architecture.mermaid # Diagrama de clases
+├── database/           # Scripts SQL
+│   ├── schema.pg.sql   # Esquema PostgreSQL (UUIDs, Triggers)
+│   └── schema.sql      # (Legacy) Esquema MySQL
+├── docker-compose.yml  # Orquestación de BD
 ├── constants.ts        # Datos Mock y configuración estática
 ├── types.ts            # Definiciones de tipos TypeScript
 ├── App.tsx             # Componente raíz y enrutamiento lógico
 └── index.html          # Punto de entrada (Configurado para Mobile)
 ```
+
+## 🚀 Despliegue de Base de Datos (Local)
+
+1.  **Levantar el servicio:**
+    ```bash
+    docker-compose up -d
+    ```
+
+2.  **Conexión (DBeaver / TablePlus):**
+    - **Host:** localhost
+    - **Port:** 5432
+    - **Database:** reprogramacion_foca
+    - **User:** admin
+    - **Password:** secure_password_123
+
+3.  **Gestión de Dependencias (Node.js):**
+    Para conectar la aplicación Node.js a esta nueva base de datos, ejecuta:
+    ```bash
+    npm uninstall mysql2
+    npm install pg
+    npm install --save-dev @types/pg
+    ```
 
 ## 🔐 Roles de Usuario
 
@@ -37,13 +59,6 @@ Plataforma web progresiva (PWA) para la gestión del programa clínico "Reprogra
 2.  **COORDINATOR:** Gestión operativa, asignación de pacientes a profesionales, monitoreo de capacidad.
 3.  **PROFESSIONAL:** Atención clínica, seguimiento de evolución (tests, audios), agenda de pacientes.
 4.  **CLIENT:** Acceso al programa paso a paso (4 semanas), guías interactivas, audios y tests.
-
-## 🚀 Despliegue y Migración
-
-Este proyecto está preparado para ser migrado a plataformas de desarrollo continuo (como Antigravity).
-
-1.  **Base de Datos:** Ejecutar `database/schema.sql` en la instancia MySQL de Google Cloud.
-2.  **Variables de Entorno:** Configurar conexiones a API en un archivo `.env` futuro (actualmente usa Mocks en `constants.ts`).
 
 ## 📱 Optimización Móvil
 
